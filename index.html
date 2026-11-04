@@ -21,7 +21,7 @@
     body { min-height: 100%; }
     .glass { backdrop-filter: blur(18px); }
     .drop-active { border-color: #6366f1 !important; background: rgba(99,102,241,.08) !important; }
-    .progress-fill { transition: width .15s ease; }
+    .progress-fill { transition: width .1s linear; }
     #qr canvas, #qr img { margin: auto; border-radius: 12px; }
     .scrollbar-thin { scrollbar-width: thin; }
     button:disabled { opacity: .48; cursor: not-allowed; }
@@ -111,6 +111,7 @@
               <p class="text-xs text-slate-500 mt-2">Any file type · Multiple files supported</p>
             </div>
             <div id="selectedFiles" class="hidden mt-4 space-y-2"></div>
+            <div id="transferProgressList" class="hidden mt-4 space-y-2"></div>
             <div class="mt-4 flex flex-col sm:flex-row gap-2">
               <select id="targetPeer" class="flex-1 min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-sm" disabled><option value="">Connect a device first</option></select>
               <button id="sendBtn" class="rounded-xl bg-indigo-600 text-white px-5 py-3 text-sm font-semibold hover:bg-indigo-700" disabled>Send files</button>
@@ -141,8 +142,10 @@
   'use strict';
 
   const $ = id => document.getElementById(id);
-  const CHUNK_SIZE = 64 * 1024;
-  const MAX_BUFFERED = 2 * 1024 * 1024;
+  // 16 KB is the universal optimal WebRTC SCTP chunk size for high throughput without fragmentation
+  const CHUNK_SIZE = 16 * 1024;
+  const MAX_BUFFERED = 1024 * 1024;      // Pause sending at 1 MB buffered
+  const LOW_BUFFER_THRESHOLD = 256 * 1024; // Resume at 256 KB buffered
   const peers = new Map();
   let peer = null;
   let myPeerId = '';
@@ -157,12 +160,14 @@
     return `${n.toFixed(n >= 100 ? 0 : n >= 10 ? 1 : 2)} ${units[i]}`;
   };
   const safeText = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
   function toast(message) {
     $('toast').textContent = message;
     $('toast').classList.remove('hidden');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => $('toast').classList.add('hidden'), 3200);
   }
+
   function log(message, type = 'info') {
     const row = document.createElement('div');
     row.className = 'flex gap-2 items-start';
@@ -174,12 +179,14 @@
     if ($('activity').firstElementChild?.textContent === 'Waiting for activity…') $('activity').innerHTML = '';
     $('activity').prepend(row);
   }
+
   function setStatus(text, good = false) {
     $('connectionText').textContent = text;
     const dot = $('connectionPill').querySelector('span');
     dot.className = `w-2 h-2 rounded-full ${good ? 'bg-emerald-500' : 'bg-amber-500'}`;
     $('connectionPill').classList.remove('hidden');
   }
+
   function setTheme(mode) {
     const dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('dark', dark);
@@ -198,6 +205,7 @@
     url.searchParams.set('connect', id);
     return url.toString();
   }
+
   function renderIdentity() {
     $('myId').textContent = myPeerId || 'Not connected to signaling server';
     $('shareLink').textContent = myPeerId ? makeShareUrl(myPeerId) : 'Unavailable';
@@ -208,6 +216,7 @@
       new QRCode($('qr'), { text: makeShareUrl(myPeerId), width: 128, height: 128, colorDark: '#0f172a', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
     } else if (!window.QRCode) $('qr').textContent = 'QR library unavailable';
   }
+
   async function copyText(value) {
     try { await navigator.clipboard.writeText(value); toast('Copied to clipboard'); }
     catch { toast('Clipboard unavailable. Select and copy the text manually.'); }
@@ -253,20 +262,26 @@
     if (peers.has(id) && peers.get(id).conn.open) { toast('Already connected to this device.'); return; }
     log(`Connecting to ${id.slice(0, 18)}…`);
     const conn = peer.connect(id, { reliable: true, serialization: 'binary', metadata: { app: 'KrizDrop', version: 1 } });
-    attachConnection(conn, true);
+    attachConnection(conn);
   }
 
-  function attachConnection(conn, outgoing) {
+  function attachConnection(conn) {
     const id = conn.peer;
-    const state = { conn, outgoing: false, incoming: null, busy: false };
+    const state = { conn, incoming: null, pending: null, busy: false, lastUiUpdate: 0 };
     peers.set(id, state);
     conn.on('open', () => {
+      try {
+        if (conn.dataChannel) {
+          conn.dataChannel.bufferedAmountLowThreshold = LOW_BUFFER_THRESHOLD;
+        }
+      } catch {}
       log(`Connected to ${id.slice(0, 22)}`, 'success');
       updatePeers();
       try { conn.send({ type: 'hello', app: 'KrizDrop', version: 1 }); } catch {}
     });
     conn.on('data', data => handleData(id, data));
     conn.on('close', () => {
+      removeTransferProgress(id);
       peers.delete(id);
       updatePeers();
       log(`Disconnected from ${id.slice(0, 22)}`);
@@ -278,10 +293,18 @@
     updatePeers();
   }
 
+  function isBinaryPayload(data) {
+    return (
+      data instanceof ArrayBuffer ||
+      ArrayBuffer.isView(data) ||
+      data instanceof Blob
+    );
+  }
+
   function handleData(id, data) {
     const state = peers.get(id);
     if (!state) return;
-    if (data instanceof ArrayBuffer || data instanceof Blob) {
+    if (isBinaryPayload(data)) {
       handleBinary(id, data);
       return;
     }
@@ -291,8 +314,16 @@
       case 'file-offer': receiveOffer(id, data); break;
       case 'file-response': handleFileResponse(id, data); break;
       case 'file-end': finishIncoming(id, data); break;
-      case 'file-cancel': state.incoming = null; log(`Transfer cancelled by ${id.slice(0, 18)}`); break;
-      case 'file-error': state.incoming = null; toast(`Transfer error: ${data.message || 'unknown'}`); break;
+      case 'file-cancel':
+        state.incoming = null;
+        removeTransferProgress(id);
+        log(`Transfer cancelled by ${id.slice(0, 18)}`);
+        break;
+      case 'file-error':
+        state.incoming = null;
+        removeTransferProgress(id);
+        toast(`Transfer error: ${data.message || 'unknown'}`);
+        break;
       default: break;
     }
   }
@@ -304,7 +335,7 @@
       return;
     }
     const size = Number(offer.size);
-    if (!offer.transferId || !Number.isSafeInteger(size) || size < 0 || size > 1024 * 1024 * 1024 || !Number.isSafeInteger(Number(offer.chunks)) || Number(offer.chunks) < 0) {
+    if (!offer.transferId || !Number.isSafeInteger(size) || size < 0 || size > 2 * 1024 * 1024 * 1024) {
       state.conn.send({ type: 'file-response', transferId: offer.transferId, accepted: false, reason: 'Invalid file metadata' });
       return;
     }
@@ -315,26 +346,64 @@
       log(`Declined ${name}`);
       return;
     }
-    state.incoming = { transferId: offer.transferId, name, size, mime: String(offer.mime || 'application/octet-stream'), chunks: Number(offer.chunks), received: 0, parts: [], started: Date.now() };
+    state.incoming = {
+      transferId: offer.transferId,
+      name,
+      size,
+      mime: String(offer.mime || 'application/octet-stream'),
+      received: 0,
+      parts: [],
+      started: performance.now(),
+      finishCheckTimer: null
+    };
     state.conn.send({ type: 'file-response', transferId: offer.transferId, accepted: true });
     log(`Receiving ${name} from ${id.slice(0, 18)}…`);
-    toast(`Receiving ${name}`);
+    updateTransferProgress(id, `Receiving ${name}`, 0, 0, size, 0);
   }
 
   function handleBinary(id, payload) {
     const state = peers.get(id);
     const rx = state?.incoming;
     if (!rx) return;
-    const blob = payload instanceof Blob ? payload : new Blob([payload]);
-    rx.parts.push(blob);
-    rx.received += blob.size;
+
+    let chunkPart;
+    let byteLength = 0;
+
+    if (payload instanceof Blob) {
+      chunkPart = payload;
+      byteLength = payload.size;
+    } else if (ArrayBuffer.isView(payload)) {
+      chunkPart = new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength);
+      byteLength = payload.byteLength;
+    } else if (payload instanceof ArrayBuffer) {
+      chunkPart = new Uint8Array(payload);
+      byteLength = payload.byteLength;
+    } else {
+      return;
+    }
+
+    rx.parts.push(chunkPart);
+    rx.received += byteLength;
+
     if (rx.received > rx.size) {
       state.conn.send({ type: 'file-error', message: 'Received more data than expected' });
       state.incoming = null;
+      removeTransferProgress(id);
       return;
     }
-    if (rx.chunks > 0 && rx.parts.length % 16 === 0) {
-      log(`Receiving ${rx.name}: ${Math.min(100, rx.received / Math.max(rx.size, 1) * 100).toFixed(0)}%`);
+
+    const now = performance.now();
+    if (now - state.lastUiUpdate > 80 || rx.received === rx.size) {
+      state.lastUiUpdate = now;
+      const elapsedSec = Math.max((now - rx.started) / 1000, 0.001);
+      const speed = rx.received / elapsedSec;
+      const pct = rx.size === 0 ? 100 : Math.min(100, (rx.received / rx.size) * 100);
+      updateTransferProgress(id, `Receiving ${rx.name}`, pct, rx.received, rx.size, speed);
+    }
+
+    // If 'file-end' already arrived slightly before the last binary chunk finished unpacking, finalize now
+    if (rx.endSignaled && rx.received === rx.size) {
+      completeIncomingDownload(id);
     }
   }
 
@@ -342,12 +411,38 @@
     const state = peers.get(id);
     const rx = state?.incoming;
     if (!rx || rx.transferId !== message.transferId) return;
-    if (rx.received !== rx.size || rx.parts.length !== rx.chunks) {
-      state.conn.send({ type: 'file-error', message: 'File data was incomplete' });
-      state.incoming = null;
-      toast(`Incomplete transfer: ${rx.name}`);
+
+    rx.endSignaled = true;
+    if (rx.received === rx.size) {
+      completeIncomingDownload(id);
       return;
     }
+
+    // Give any trailing in-flight binary chunks up to 3 seconds to finish arriving
+    clearTimeout(rx.finishCheckTimer);
+    rx.finishCheckTimer = setTimeout(() => {
+      if (!state.incoming || state.incoming.transferId !== message.transferId) return;
+      if (state.incoming.received === state.incoming.size) {
+        completeIncomingDownload(id);
+      } else {
+        state.conn.send({ type: 'file-error', message: `File data was incomplete (${fmtBytes(state.incoming.received)} / ${fmtBytes(state.incoming.size)})` });
+        toast(`Incomplete transfer: ${state.incoming.name}`);
+        log(`Incomplete transfer for ${state.incoming.name}: got ${fmtBytes(state.incoming.received)} of ${fmtBytes(state.incoming.size)}`, 'error');
+        state.incoming = null;
+        removeTransferProgress(id);
+      }
+    }, 3000);
+  }
+
+  function completeIncomingDownload(id) {
+    const state = peers.get(id);
+    const rx = state?.incoming;
+    if (!rx) return;
+    clearTimeout(rx.finishCheckTimer);
+
+    const elapsedSec = Math.max((performance.now() - rx.started) / 1000, 0.001);
+    updateTransferProgress(id, `Received ${rx.name}`, 100, rx.size, rx.size, rx.size / elapsedSec);
+
     const blob = new Blob(rx.parts, { type: rx.mime });
     const a = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -357,25 +452,37 @@
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
+
     state.conn.send({ type: 'file-response', transferId: rx.transferId, completed: true, name: rx.name });
     log(`Received ${rx.name} (${fmtBytes(rx.size)})`, 'success');
     toast(`Downloaded ${rx.name}`);
     state.incoming = null;
+    setTimeout(() => removeTransferProgress(id), 3500);
   }
 
   function handleFileResponse(id, message) {
     const state = peers.get(id);
     if (!state || !state.pending || state.pending.transferId !== message.transferId) return;
+
+    if (state.waitResponse && (message.accepted === true || message.accepted === false)) {
+      const wake = state.waitResponse;
+      state.waitResponse = null;
+      wake(message.accepted);
+    }
+
     if (message.completed) {
+      const name = state.pending.file?.name || message.name || 'file';
       state.pending = null;
       state.busy = false;
-      log(`Sent ${message.name || 'file'} successfully`, 'success');
+      log(`Sent ${name} successfully`, 'success');
       toast('File transfer completed');
+      setTimeout(() => removeTransferProgress(id), 3500);
       return;
     }
     if (message.accepted === false) {
       state.pending = null;
       state.busy = false;
+      removeTransferProgress(id);
       toast(message.reason || 'File declined');
       log(`File offer declined by ${id.slice(0, 18)}`);
       return;
@@ -388,52 +495,130 @@
   async function waitForBuffer(conn) {
     const dc = conn.dataChannel;
     if (!dc || typeof dc.bufferedAmount !== 'number') return;
-    while (dc.bufferedAmount > MAX_BUFFERED && conn.open) {
-      await new Promise(resolve => setTimeout(resolve, 30));
-    }
+    if (dc.bufferedAmount <= MAX_BUFFERED) return;
+
+    await new Promise(resolve => {
+      let resolved = false;
+      const done = () => {
+        if (resolved) return;
+        resolved = true;
+        dc.removeEventListener('bufferedamountlow', done);
+        clearInterval(fallbackPoll);
+        resolve();
+      };
+      dc.addEventListener('bufferedamountlow', done);
+      const fallbackPoll = setInterval(() => {
+        if (!conn.open || dc.bufferedAmount <= LOW_BUFFER_THRESHOLD) done();
+      }, 15);
+    });
   }
+
   async function sendFileChunks(id, state, file, transferId) {
     try {
-      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-      for (let index = 0; index < totalChunks; index++) {
-        if (!state.conn.open || !state.pending || state.pending.transferId !== transferId) throw new Error('Connection closed');
-        await waitForBuffer(state.conn);
-        const chunk = file.slice(index * CHUNK_SIZE, Math.min(file.size, (index + 1) * CHUNK_SIZE));
-        const buffer = await chunk.arrayBuffer();
-        state.conn.send(buffer);
-        const pct = Math.min(100, ((index + 1) / Math.max(totalChunks, 1)) * 100);
-        updateTransferProgress(id, file.name, pct);
+      const totalSize = file.size;
+      const startTime = performance.now();
+      let offset = 0;
+
+      updateTransferProgress(id, `Sending ${file.name}`, 0, 0, totalSize, 0);
+
+      // Read in 2 MB slices from disk to avoid thousands of tiny File.slice() async operations
+      const READ_BLOCK_SIZE = 2 * 1024 * 1024;
+
+      while (offset < totalSize) {
+        if (!state.conn.open || !state.pending || state.pending.transferId !== transferId) {
+          throw new Error('Connection closed');
+        }
+
+        const blockEnd = Math.min(totalSize, offset + READ_BLOCK_SIZE);
+        const blockBuffer = await file.slice(offset, blockEnd).arrayBuffer();
+        let blockOffset = 0;
+
+        while (blockOffset < blockBuffer.byteLength) {
+          if (!state.conn.open || !state.pending || state.pending.transferId !== transferId) {
+            throw new Error('Connection closed');
+          }
+          await waitForBuffer(state.conn);
+
+          const chunkEnd = Math.min(blockBuffer.byteLength, blockOffset + CHUNK_SIZE);
+          const chunk = new Uint8Array(blockBuffer, blockOffset, chunkEnd - blockOffset);
+          state.conn.send(chunk);
+
+          blockOffset = chunkEnd;
+          const totalSent = offset + blockOffset;
+
+          const now = performance.now();
+          if (now - state.lastUiUpdate > 80 || totalSent === totalSize) {
+            state.lastUiUpdate = now;
+            const elapsedSec = Math.max((now - startTime) / 1000, 0.001);
+            const speed = totalSent / elapsedSec;
+            const pct = totalSize === 0 ? 100 : Math.min(100, (totalSent / totalSize) * 100);
+            updateTransferProgress(id, `Sending ${file.name}`, pct, totalSent, totalSize, speed);
+          }
+        }
+
+        offset = blockEnd;
       }
+
+      // Wait for the WebRTC dataChannel buffer to drain before sending file-end
+      const dc = state.conn.dataChannel;
+      while (dc && dc.bufferedAmount > 0 && state.conn.open) {
+        await new Promise(r => setTimeout(r, 20));
+      }
+
       state.conn.send({ type: 'file-end', transferId });
-        state.pending.name = file.name;
-      log(`Sent data for ${file.name}; waiting for confirmation`);
+      log(`Finished sending ${file.name}; awaiting confirmation…`);
     } catch (error) {
       try { state.conn.send({ type: 'file-cancel', transferId }); } catch {}
       state.pending = null;
       state.busy = false;
+      removeTransferProgress(id);
       toast(`Could not send file: ${error.message}`);
       log(`Failed to send ${file.name}: ${error.message}`, 'error');
     }
   }
 
-  function updateTransferProgress(id, name, pct) {
-    let row = document.getElementById('progress-' + CSS.escape(id));
+  function updateTransferProgress(id, labelText, pct, transferredBytes, totalBytes, speedBytesPerSec) {
+    const list = $('transferProgressList');
+    list.classList.remove('hidden');
+
+    // Use a data attribute or direct Map/ID lookup without CSS.escape mismatch!
+    const domId = `progress-${id}`;
+    let row = document.getElementById(domId);
+
     if (!row) {
       row = document.createElement('div');
-      row.id = 'progress-' + id;
-      row.className = 'mt-3 rounded-xl bg-slate-50 dark:bg-slate-900 p-3';
-      const title = document.createElement('div');
-      title.className = 'flex justify-between gap-3 text-xs mb-2';
-      const n = document.createElement('span'); n.className = 'truncate font-medium'; n.textContent = `Sending ${name}`;
-      const p = document.createElement('span'); p.className = 'pct shrink-0'; p.textContent = '0%';
-      title.append(n, p);
-      const track = document.createElement('div'); track.className = 'h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden';
-      const fill = document.createElement('div'); fill.className = 'progress-fill h-full bg-indigo-600 rounded-full'; fill.style.width = '0%';
-      track.append(fill); row.append(title, track); $('selectedFiles').classList.remove('hidden'); $('selectedFiles').append(row);
+      row.id = domId;
+      row.className = 'rounded-xl bg-slate-50 dark:bg-slate-900 p-3 border border-slate-200/60 dark:border-slate-800';
+      row.innerHTML = `
+        <div class="flex justify-between items-center gap-3 text-xs mb-1.5">
+          <span class="transfer-title truncate font-semibold"></span>
+          <span class="transfer-pct shrink-0 font-bold text-indigo-600 dark:text-indigo-400">0%</span>
+        </div>
+        <div class="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+          <div class="progress-fill h-full bg-indigo-600 rounded-full" style="width: 0%"></div>
+        </div>
+        <div class="flex justify-between items-center text-[11px] text-slate-500 mt-1.5">
+          <span class="transfer-bytes">0 B / 0 B</span>
+          <span class="transfer-speed">0 B/s</span>
+        </div>
+      `;
+      list.append(row);
     }
-    row.querySelector('.pct').textContent = `${pct.toFixed(0)}%`;
+
+    row.querySelector('.transfer-title').textContent = labelText;
+    row.querySelector('.transfer-pct').textContent = `${pct.toFixed(0)}%`;
     row.querySelector('.progress-fill').style.width = `${pct}%`;
-    if (pct >= 100) setTimeout(() => row.remove(), 5000);
+    row.querySelector('.transfer-bytes').textContent = `${fmtBytes(transferredBytes)} / ${fmtBytes(totalBytes)}`;
+    row.querySelector('.transfer-speed').textContent = speedBytesPerSec > 0 ? `${fmtBytes(speedBytesPerSec)}/s` : '';
+  }
+
+  function removeTransferProgress(id) {
+    const row = document.getElementById(`progress-${id}`);
+    if (row) row.remove();
+    const list = $('transferProgressList');
+    if (list && list.children.length === 0) {
+      list.classList.add('hidden');
+    }
   }
 
   async function sendSelectedFiles() {
@@ -445,43 +630,47 @@
     const files = [...selectedFiles];
     selectedFiles = [];
     renderSelectedFiles();
+    updatePeers();
+
     for (const file of files) {
       if (!state.conn.open) break;
       state.busy = true;
       const transferId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       state.pending = { transferId, file };
-      state.conn.send({ type: 'file-offer', transferId, name: file.name, size: file.size, mime: file.type || 'application/octet-stream', chunks: Math.ceil(file.size / CHUNK_SIZE) });
-      log(`Offered ${file.name} to ${id.slice(0, 18)}`);
+      state.conn.send({
+        type: 'file-offer',
+        transferId,
+        name: file.name,
+        size: file.size,
+        mime: file.type || 'application/octet-stream'
+      });
+      log(`Offered ${file.name} (${fmtBytes(file.size)}) to ${id.slice(0, 18)}`);
+
       const accepted = await new Promise(resolve => {
         const timeout = setTimeout(() => resolve(false), 120000);
         state.waitResponse = value => { clearTimeout(timeout); resolve(value); };
       });
+
       if (!accepted && state.pending?.transferId === transferId) {
-        state.pending = null; state.busy = false;
+        state.pending = null;
+        state.busy = false;
         toast('No acceptance received. Transfer skipped.');
       }
-      // Completion response is handled separately; next file waits until the current transfer clears.
+
       if (state.pending?.transferId === transferId) {
         await new Promise(resolve => {
           const started = Date.now();
           const timer = setInterval(() => {
-            if (!state.pending || state.pending.transferId !== transferId || Date.now() - started > 10 * 60 * 1000) { clearInterval(timer); resolve(); }
-          }, 250);
+            if (!state.pending || state.pending.transferId !== transferId || Date.now() - started > 30 * 60 * 1000) {
+              clearInterval(timer);
+              resolve();
+            }
+          }, 200);
         });
       }
     }
     updatePeers();
   }
-
-  // file-response acceptance is routed through this wrapper to wake the sender's offer wait.
-  const originalHandleFileResponse = handleFileResponse;
-  handleFileResponse = function(id, message) {
-    const state = peers.get(id);
-    if (state?.waitResponse && (message.accepted === true || message.accepted === false)) {
-      const wake = state.waitResponse; state.waitResponse = null; wake(message.accepted);
-    }
-    originalHandleFileResponse(id, message);
-  };
 
   function renderSelectedFiles() {
     const wrap = $('selectedFiles');
@@ -500,6 +689,7 @@
       row.append(label, remove); wrap.append(row);
     });
   }
+
   function addFiles(files) {
     const incoming = [...files];
     const seen = new Set(selectedFiles.map(f => `${f.name}:${f.size}:${f.lastModified}`));
@@ -507,8 +697,10 @@
       const key = `${file.name}:${file.size}:${file.lastModified}`;
       if (!seen.has(key)) { selectedFiles.push(file); seen.add(key); }
     });
-    renderSelectedFiles(); updatePeers();
+    renderSelectedFiles();
+    updatePeers();
   }
+
   $('dropZone').addEventListener('click', () => $('fileInput').click());
   $('fileInput').addEventListener('change', e => { addFiles(e.target.files); e.target.value = ''; });
   $('dropZone').addEventListener('dragover', e => { e.preventDefault(); $('dropZone').classList.add('drop-active'); });
@@ -525,6 +717,7 @@
     peer = null; myPeerId = '';
     renderIdentity(); updatePeers();
   }
+
   function startPeer() {
     destroyPeer();
     if (!window.Peer) {
@@ -558,7 +751,7 @@
         setTimeout(() => connectTo(requested), 500);
       }
     });
-    peer.on('connection', conn => attachConnection(conn, false));
+    peer.on('connection', conn => attachConnection(conn));
     peer.on('disconnected', () => {
       setStatus('Signaling disconnected');
       log('Signaling connection lost. Reconnecting…', 'error');
@@ -572,6 +765,7 @@
       else if (err.type === 'network' || err.type === 'server-error') setStatus('Signaling server issue');
     });
   }
+
   $('newSessionBtn').addEventListener('click', () => {
     const url = new URL(location.href); url.searchParams.delete('connect'); history.replaceState({}, '', url);
     startPeer();
