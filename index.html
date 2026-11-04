@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en" class="h-full overflow-x-hidden">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -30,9 +30,13 @@
   <style>
     :root { color-scheme: light; }
     html.dark { color-scheme: dark; }
+    html, body {
+      max-width: 100vw;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
     body {
       min-height: 100dvh;
-      -webkit-tap-highlight-color: transparent;
       padding-bottom: env(safe-area-inset-bottom);
     }
     .glass { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
@@ -42,7 +46,7 @@
       transform: scale(1.01);
     }
     .progress-fill { transition: width 0.12s linear; }
-    #qr canvas, #qr img { margin: auto; border-radius: 12px; }
+    #qr canvas, #qr img { margin: auto; border-radius: 12px; display: block; }
     .scrollbar-thin { scrollbar-width: thin; }
     button:disabled { opacity: 0.45; cursor: not-allowed; }
     @media (max-width: 1023px) {
@@ -52,48 +56,48 @@
 </head>
 <body class="bg-slate-100 text-slate-900 dark:bg-[#070b14] dark:text-slate-100 transition-colors selection:bg-indigo-500 selection:text-white">
 
-  <!-- Ambient Top Glow (Desktop & Mobile) -->
-  <div class="pointer-events-none fixed inset-x-0 top-0 h-80 bg-gradient-to-b from-indigo-500/10 via-indigo-500/5 to-transparent dark:from-indigo-500/15 dark:via-indigo-950/10 dark:to-transparent -z-10"></div>
+  <!-- Ambient Top Glow -->
+  <div class="pointer-events-none fixed inset-x-0 top-0 h-64 bg-gradient-to-b from-indigo-500/10 via-indigo-500/5 to-transparent dark:from-indigo-500/15 dark:via-indigo-950/10 dark:to-transparent -z-10"></div>
 
-  <div class="min-h-[100dvh] flex flex-col pb-20 lg:pb-0">
+  <div class="min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex flex-col pb-20 lg:pb-0">
 
-    <!-- App Header -->
-    <header class="border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-[#0b1220]/80 glass sticky top-0 z-30">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
-        <a href="#" class="flex items-center gap-3 group" aria-label="KrizDrop home">
-          <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white grid place-items-center shadow-lg shadow-indigo-600/25 group-hover:scale-105 transition-transform">
+    <!-- App Header (100% full width, never clips or wraps awkwardly) -->
+    <header class="w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-[#0b1220]/90 glass sticky top-0 z-30">
+      <div class="max-w-7xl w-full mx-auto px-3.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
+        <a href="#" class="flex items-center gap-2.5 min-w-0 shrink-0" aria-label="KrizDrop home">
+          <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white grid place-items-center shadow-md shadow-indigo-600/25 shrink-0">
             <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M13 2 4 14h7l-1 8 10-13h-7l0-7Z" stroke-linejoin="round"/></svg>
           </div>
-          <div>
-            <div class="font-extrabold tracking-tight text-lg leading-5 flex items-center gap-2">
-              KrizDrop
+          <div class="leading-tight">
+            <div class="font-extrabold tracking-tight text-base sm:text-lg flex items-center gap-2">
+              <span>KrizDrop</span>
               <span class="hidden sm:inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">P2P WebRTC</span>
             </div>
-            <div class="text-[10px] uppercase tracking-[.2em] text-slate-500 dark:text-slate-400">Direct Device Transfer</div>
+            <div class="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 whitespace-nowrap">Direct P2P Transfer</div>
           </div>
         </a>
 
-        <div class="flex items-center gap-2.5">
-          <!-- Always-visible live connection pill -->
-          <span id="connectionPill" class="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800/90 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700/70">
-            <span id="connectionDot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-            <span id="connectionText" class="truncate max-w-[130px] sm:max-w-none">Starting…</span>
+        <div class="flex items-center gap-2 min-w-0">
+          <!-- Connection Status Pill -->
+          <span id="connectionPill" class="inline-flex items-center gap-1.5 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800/90 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700/70">
+            <span id="connectionDot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+            <span id="connectionText" class="truncate max-w-[110px] sm:max-w-none">Starting…</span>
           </span>
 
-          <button id="themeBtn" class="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white/60 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center transition-colors" title="Toggle theme" aria-label="Toggle theme">
-            <svg id="themeIcon" viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+          <button id="themeBtn" class="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white/70 dark:bg-slate-800/70 hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center transition-colors" title="Toggle theme" aria-label="Toggle theme">
+            <svg id="themeIcon" viewBox="0 0 24 24" class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
           </button>
         </div>
       </div>
     </header>
 
-    <!-- Main Content Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-5 lg:py-10">
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 py-4 lg:py-8">
 
-      <!-- Desktop Hero Banner (Compact on Mobile) -->
-      <section class="hidden lg:flex items-center justify-between gap-6 mb-8 pb-6 border-b border-slate-200/70 dark:border-slate-800/70">
+      <!-- Desktop Hero Banner -->
+      <section class="hidden lg:flex items-center justify-between gap-6 mb-7 pb-6 border-b border-slate-200/70 dark:border-slate-800/70">
         <div>
-          <div class="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-3">
+          <div class="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-2.5">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> End-to-End Encrypted · Zero Cloud Storage · Unlimited Speed
           </div>
           <h1 class="text-3xl xl:text-4xl font-extrabold tracking-tight">
@@ -108,35 +112,35 @@
         </div>
       </section>
 
-      <!-- Responsive Grid: Tabs on Mobile (<1024px), 12-Col Dashboard on Desktop (>=1024px) -->
-      <section class="grid lg:grid-cols-12 gap-6 items-start">
+      <!-- Responsive Grid: every child has min-w-0 to prevent horizontal overflow on mobile -->
+      <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-start w-full">
 
-        <!-- LEFT COLUMN (5 cols on Desktop): PAIRING & IDENTITY -->
-        <div id="tabPanelPair" class="lg:col-span-5 space-y-5">
+        <!-- LEFT COLUMN (Pair & QR) -->
+        <div id="tabPanelPair" class="min-w-0 w-full lg:col-span-5 space-y-4">
 
           <!-- Identity & QR Card -->
-          <div class="rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm overflow-hidden">
-            <div class="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-3">
-              <div>
-                <div class="text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Step 1 · Your Device</div>
-                <h2 class="text-lg sm:text-xl font-bold mt-0.5">Share or Scan to Pair</h2>
+          <div class="w-full rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm overflow-hidden">
+            <div class="px-4 py-3.5 sm:p-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <div class="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Step 1 · Your Device</div>
+                <h2 class="text-base sm:text-lg font-bold truncate">Share or Scan to Pair</h2>
               </div>
-              <button id="newSessionBtn" class="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Generate a fresh Peer ID">
+              <button id="newSessionBtn" class="shrink-0 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                 New ID
               </button>
             </div>
 
-            <div class="p-5 sm:p-6 space-y-5">
-              <!-- QR + ID Layout (Centered App Card on Mobile, Side-by-Side on Tablet/Desktop) -->
-              <div class="flex flex-col sm:flex-row items-center gap-5">
-                <div id="qr" class="bg-white p-3.5 rounded-2xl w-[156px] h-[156px] shrink-0 grid place-items-center border border-slate-200 shadow-inner">
+            <div class="p-4 sm:p-5 space-y-4">
+              <!-- Compact QR + Peer ID -->
+              <div class="flex flex-col sm:flex-row items-center gap-4">
+                <div id="qr" class="bg-white p-3 rounded-2xl w-[144px] h-[144px] shrink-0 grid place-items-center border border-slate-200 shadow-sm">
                   <span class="text-xs text-slate-400">Preparing QR…</span>
                 </div>
 
-                <div class="w-full min-w-0 space-y-3 text-center sm:text-left">
+                <div class="w-full min-w-0 space-y-2.5 text-center sm:text-left">
                   <div>
-                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Your Peer ID</div>
-                    <div id="myId" class="mt-1 font-mono text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200 break-all bg-slate-100 dark:bg-slate-900/90 px-3 py-2 rounded-xl border border-slate-200/60 dark:border-slate-800">
+                    <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Your Peer ID</div>
+                    <div id="myId" class="mt-1 font-mono text-xs font-medium text-slate-700 dark:text-slate-200 truncate bg-slate-100 dark:bg-slate-900/90 px-3 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800">
                       Generating secure ID…
                     </div>
                   </div>
@@ -152,108 +156,118 @@
                 </div>
               </div>
 
-              <!-- Direct Link Box -->
-              <div class="rounded-2xl bg-slate-50 dark:bg-slate-900/60 p-3.5 border border-slate-200/60 dark:border-slate-800/80">
+              <!-- Instant Pairing URL (Strictly contained so it NEVER stretches mobile width) -->
+              <div class="w-full min-w-0 rounded-xl bg-slate-50 dark:bg-slate-900/60 p-3 border border-slate-200/60 dark:border-slate-800/80">
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">Instant Pairing URL</span>
-                  <button id="copyLinkBtn" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline" disabled>Copy URL</button>
+                  <button id="copyLinkBtn" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0" disabled>Copy URL</button>
                 </div>
-                <div id="shareLink" class="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-400 truncate">Waiting for signaling server…</div>
+                <div id="shareLink" class="mt-1 w-full font-mono text-[11px] text-slate-500 dark:text-slate-400 truncate">Waiting for signaling server…</div>
               </div>
             </div>
           </div>
 
           <!-- Connect to Peer Card -->
-          <div class="rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-5 sm:p-6">
-            <div class="flex items-center justify-between gap-3 mb-4">
-              <div>
-                <div class="text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Join Another Device</div>
-                <h2 class="text-lg sm:text-xl font-bold mt-0.5">Enter Peer ID</h2>
+          <div class="w-full rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-4 sm:p-5">
+            <div class="flex items-center justify-between gap-3 mb-3">
+              <div class="min-w-0">
+                <div class="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Join Another Device</div>
+                <h2 class="text-base sm:text-lg font-bold">Enter Peer ID</h2>
               </div>
-              <div class="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 grid place-items-center">
+              <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 grid place-items-center shrink-0">
                 <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 12h8m-4-4 4 4-4 4"/><circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
               </div>
             </div>
-            <form id="connectForm" class="flex flex-col sm:flex-row gap-2.5">
-              <input id="peerIdInput" type="text" autocomplete="off" spellcheck="false" placeholder="Paste other device's Peer ID…" class="min-w-0 flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-sm font-mono outline-none focus:ring-2 focus:ring-indigo-500">
-              <button id="connectBtn" class="rounded-xl bg-indigo-600 text-white px-5 py-3 text-sm font-semibold hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 transition-colors">
+            <form id="connectForm" class="flex flex-col sm:flex-row gap-2">
+              <input id="peerIdInput" type="text" autocomplete="off" spellcheck="false" placeholder="Paste other device's Peer ID…" class="min-w-0 w-full flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-3 text-xs sm:text-sm font-mono outline-none focus:ring-2 focus:ring-indigo-500">
+              <button id="connectBtn" class="w-full sm:w-auto shrink-0 rounded-xl bg-indigo-600 text-white px-5 py-3 text-sm font-semibold hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 transition-colors">
                 Connect
               </button>
             </form>
           </div>
+
+          <!-- Mobile Quick Tip Card (Fills bottom space nicely on tall mobile screens) -->
+          <div class="lg:hidden rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-500/20 p-3.5 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-xl bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 grid place-items-center shrink-0">
+              <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+            </div>
+            <p class="text-xs text-slate-600 dark:text-slate-300 leading-snug">
+              Scan this QR code with another phone's camera or tap <span class="font-semibold">Share Link</span> to pair automatically.
+            </p>
+          </div>
         </div>
 
-        <!-- RIGHT COLUMN (7 cols on Desktop): TRANSFER & PEERS & ACTIVITY -->
-        <div id="tabPanelTransfer" class="lg:col-span-7 space-y-5 mobile-tab-hidden">
+        <!-- RIGHT COLUMN (Transfer & Activity) -->
+        <div id="tabPanelTransfer" class="min-w-0 w-full lg:col-span-7 space-y-4 mobile-tab-hidden">
 
-          <!-- Connected Devices Bar -->
-          <div class="rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-5 sm:p-6">
-            <div class="flex items-center justify-between gap-3 mb-4">
-              <div>
-                <div class="text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Active Channels</div>
-                <h2 class="text-lg sm:text-xl font-bold mt-0.5">Connected Devices</h2>
+          <!-- Connected Devices Card -->
+          <div class="w-full rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-4 sm:p-5">
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <div class="min-w-0">
+                <div class="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Active Channels</div>
+                <h2 class="text-base sm:text-lg font-bold">Connected Devices</h2>
               </div>
-              <div class="flex items-center gap-2">
-                <span id="peerCount" class="rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300 px-3 py-1 text-xs font-bold">0 connected</span>
-                <button id="disconnectBtn" class="rounded-xl border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 px-3 py-1 text-xs font-semibold hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors" disabled>
-                  Disconnect All
+              <div class="flex items-center gap-2 shrink-0">
+                <span id="peerCount" class="rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300 px-2.5 py-1 text-xs font-bold">0 connected</span>
+                <button id="disconnectBtn" class="rounded-xl border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 px-2.5 py-1 text-xs font-semibold hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors" disabled>
+                  Disconnect
                 </button>
               </div>
             </div>
-            <div id="peerList" class="space-y-2.5">
-              <div class="text-sm text-slate-500 dark:text-slate-400 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-5 text-center">
-                No devices connected yet. Pair a device using your QR code or Peer ID.
+            <div id="peerList" class="space-y-2">
+              <div class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-4 text-center">
+                No devices connected yet. Pair a device in the Pair tab first.
               </div>
             </div>
           </div>
 
           <!-- File Drop & Live Transfer Center -->
-          <div class="rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-5 sm:p-6">
-            <div class="flex items-center justify-between gap-3 mb-4">
+          <div class="w-full rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-4 sm:p-5">
+            <div class="flex items-center justify-between gap-2 mb-3">
               <div>
-                <div class="text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Transfer Center</div>
-                <h2 class="text-lg sm:text-xl font-bold mt-0.5">Send & Receive Files</h2>
+                <div class="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Transfer Center</div>
+                <h2 class="text-base sm:text-lg font-bold">Send & Receive Files</h2>
               </div>
-              <span class="text-xs font-medium text-slate-500 dark:text-slate-400">16KB SCTP Stream</span>
+              <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Encrypted Stream</span>
             </div>
 
             <!-- Interactive Drop Zone -->
-            <div id="dropZone" class="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-900/40 p-6 sm:p-8 text-center transition-all cursor-pointer hover:border-indigo-500 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/10">
+            <div id="dropZone" class="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-900/40 p-6 sm:p-8 text-center transition-all cursor-pointer hover:border-indigo-500">
               <input id="fileInput" type="file" multiple class="hidden">
-              <div class="w-14 h-14 rounded-2xl bg-indigo-600/10 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-400 grid place-items-center mx-auto mb-3 shadow-inner">
-                <svg viewBox="0 0 24 24" class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4m-5 5 5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+              <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-indigo-600/10 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-400 grid place-items-center mx-auto mb-2.5">
+                <svg viewBox="0 0 24 24" class="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4m-5 5 5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
               </div>
-              <div class="font-bold text-sm sm:text-base">Tap to choose files <span class="hidden sm:inline">or drag & drop here</span></div>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Photos, videos, ZIPs, documents · Up to 2 GB per file</p>
+              <div class="font-bold text-sm sm:text-base">Tap to select files <span class="hidden sm:inline">or drag & drop here</span></div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Any file type · Multiple files supported</p>
             </div>
 
-            <!-- Queued Files to Send -->
-            <div id="selectedFiles" class="hidden mt-4 space-y-2 max-h-48 overflow-y-auto scrollbar-thin"></div>
+            <!-- Selected Files Queue -->
+            <div id="selectedFiles" class="hidden mt-3.5 space-y-2 max-h-44 overflow-y-auto scrollbar-thin"></div>
 
-            <!-- LIVE SINGLE PROGRESS HUD (Never duplicates!) -->
-            <div id="transferProgressList" class="hidden mt-4 space-y-3"></div>
+            <!-- Single Live Progress Card -->
+            <div id="transferProgressList" class="hidden mt-3.5 space-y-2.5"></div>
 
             <!-- Target Peer & Send Action -->
-            <div class="mt-4 flex flex-col sm:flex-row gap-2.5">
-              <select id="targetPeer" class="flex-1 min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500" disabled>
+            <div class="mt-3.5 flex flex-col sm:flex-row gap-2">
+              <select id="targetPeer" class="flex-1 min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-3 text-xs sm:text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500" disabled>
                 <option value="">Connect a device first</option>
               </select>
-              <button id="sendBtn" class="rounded-xl bg-indigo-600 text-white px-6 py-3.5 text-sm font-bold hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all" disabled>
+              <button id="sendBtn" class="w-full sm:w-auto rounded-xl bg-indigo-600 text-white px-6 py-3 text-sm font-bold hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all" disabled>
                 Send Files Now
               </button>
             </div>
           </div>
 
-          <!-- Desktop Activity Log (On Mobile this is shown in the 3rd Tab) -->
-          <div id="tabPanelActivity" class="rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-5 sm:p-6 mobile-tab-hidden">
+          <!-- Session Activity Log -->
+          <div id="tabPanelActivity" class="w-full rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-4 sm:p-5 mobile-tab-hidden">
             <div class="flex items-center justify-between mb-3">
               <div>
-                <div class="text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Diagnostics</div>
-                <h2 class="text-base font-bold mt-0.5">Session Activity</h2>
+                <div class="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Diagnostics</div>
+                <h2 class="text-base font-bold">Session Activity</h2>
               </div>
               <button id="clearLogBtn" class="text-xs font-semibold text-slate-500 hover:text-indigo-600">Clear Log</button>
             </div>
-            <div id="activity" class="space-y-2 max-h-48 overflow-y-auto scrollbar-thin text-xs text-slate-500 dark:text-slate-400 font-mono">
+            <div id="activity" class="space-y-2 max-h-60 overflow-y-auto scrollbar-thin text-xs text-slate-500 dark:text-slate-400 font-mono">
               <div>Waiting for activity…</div>
             </div>
           </div>
@@ -263,9 +277,9 @@
     </main>
 
     <!-- MOBILE NATIVE BOTTOM NAVIGATION BAR (<1024px) -->
-    <nav class="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-slate-200/90 dark:border-slate-800/90 bg-white/90 dark:bg-[#0b1220]/90 glass">
+    <nav class="lg:hidden fixed bottom-0 inset-x-0 w-full z-40 border-t border-slate-200/90 dark:border-slate-800/90 bg-white/95 dark:bg-[#0b1220]/95 glass">
       <div class="grid grid-cols-3 h-16 max-w-md mx-auto px-2">
-        <button data-tab="pair" class="mobile-tab-btn flex flex-col items-center justify-center gap-1 text-indigo-600 dark:text-indigo-400 font-semibold">
+        <button data-tab="pair" class="mobile-tab-btn flex flex-col items-center justify-center gap-1 text-indigo-600 dark:text-indigo-400 font-bold">
           <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3m0 4h4v-4m-7 4h3"/></svg>
           <span class="text-[11px]">Pair & QR</span>
         </button>
@@ -286,9 +300,9 @@
     </nav>
   </div>
 
-  <!-- NATIVE-STYLE INCOMING FILE OFFER MODAL (Replaces ugly window.confirm) -->
+  <!-- INCOMING FILE OFFER MODAL -->
   <div id="offerModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-950/60 backdrop-blur-sm p-3 sm:p-4">
-    <div class="w-full max-w-md rounded-3xl bg-white dark:bg-[#111a2e] border border-slate-200 dark:border-slate-800 p-6 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200">
+    <div class="w-full max-w-md rounded-3xl bg-white dark:bg-[#111a2e] border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xl">
       <div class="flex items-center gap-3.5">
         <div class="w-12 h-12 rounded-2xl bg-indigo-600/10 dark:bg-indigo-400/15 text-indigo-600 dark:text-indigo-400 grid place-items-center shrink-0">
           <svg viewBox="0 0 24 24" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
@@ -306,7 +320,7 @@
         </div>
         <div class="flex justify-between gap-2">
           <span class="text-slate-500">From Peer</span>
-          <span id="offerPeerId" class="font-mono text-slate-700 dark:text-slate-300 truncate max-w-[200px]">peer-id</span>
+          <span id="offerPeerId" class="font-mono text-slate-700 dark:text-slate-300 truncate max-w-[180px]">peer-id</span>
         </div>
       </div>
 
@@ -315,21 +329,21 @@
           Decline
         </button>
         <button id="acceptOfferBtn" class="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white py-3 text-sm font-bold shadow-lg shadow-indigo-600/25 transition-colors">
-          Accept & Download
+          Accept
         </button>
       </div>
     </div>
   </div>
 
   <!-- Toast Notification -->
-  <div id="toast" class="fixed bottom-20 lg:bottom-6 left-1/2 -translate-x-1/2 z-50 hidden max-w-[calc(100%-2rem)] rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold px-4 py-3 text-xs sm:text-sm shadow-2xl"></div>
+  <div id="toast" class="fixed bottom-20 lg:bottom-6 left-1/2 -translate-x-1/2 z-50 hidden max-w-[calc(100vw-2rem)] rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold px-4 py-3 text-xs sm:text-sm shadow-2xl truncate"></div>
 
 <script>
 (() => {
   'use strict';
 
   const $ = id => document.getElementById(id);
-  const CHUNK_SIZE = 16 * 1024; // 16 KB optimal WebRTC SCTP chunk size
+  const CHUNK_SIZE = 16 * 1024;
   const MAX_BUFFERED = 1024 * 1024;
   const LOW_BUFFER_THRESHOLD = 256 * 1024;
 
@@ -368,6 +382,7 @@
       type === 'error' ? 'bg-rose-500' : type === 'success' ? 'bg-emerald-500' : 'bg-indigo-400'
     }`;
     const text = document.createElement('span');
+    text.className = 'break-all';
     text.textContent = `${new Date().toLocaleTimeString()} · ${message}`;
     row.append(dot, text);
     if ($('activity').firstElementChild?.textContent === 'Waiting for activity…') {
@@ -378,12 +393,11 @@
 
   function setStatus(text, good = false) {
     $('connectionText').textContent = text;
-    $('connectionDot').className = `w-2 h-2 rounded-full ${
+    $('connectionDot').className = `w-2 h-2 rounded-full shrink-0 ${
       good ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
     }`;
   }
 
-  // Mobile App Tab Switching (<1024px)
   function switchMobileTab(tabName) {
     currentMobileTab = tabName;
     const isPair = tabName === 'pair';
@@ -393,7 +407,6 @@
     $('tabPanelPair').classList.toggle('mobile-tab-hidden', !isPair);
     $('tabPanelTransfer').classList.toggle('mobile-tab-hidden', !(isTransfer || isActivity));
 
-    // Inside right column, toggle transfer cards vs activity card on mobile
     const rightChildren = [...$('tabPanelTransfer').children];
     rightChildren.forEach(el => {
       if (el.id === 'tabPanelActivity') {
@@ -417,7 +430,6 @@
     btn.addEventListener('click', () => switchMobileTab(btn.dataset.tab));
   });
 
-  // Theme management
   function setTheme(mode) {
     const dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('dark', dark);
@@ -447,8 +459,8 @@
     if (myPeerId && window.QRCode) {
       new QRCode($('qr'), {
         text: makeShareUrl(myPeerId),
-        width: 132,
-        height: 132,
+        width: 120,
+        height: 120,
         colorDark: '#0f172a',
         colorLight: '#ffffff',
         correctLevel: QRCode.CorrectLevel.M
@@ -489,7 +501,6 @@
     $('targetPeer').disabled = count === 0;
     $('sendBtn').disabled = count === 0 || selectedFiles.length === 0;
 
-    // Mobile badge
     const badge = $('mobilePeerBadge');
     if (count > 0) {
       badge.textContent = String(count);
@@ -499,23 +510,23 @@
     }
 
     $('targetPeer').innerHTML = count
-      ? entries.map(([id]) => `<option value="${safeText(id)}">Send to: ${safeText(id.slice(0, 24))}${id.length > 24 ? '…' : ''}</option>`).join('')
+      ? entries.map(([id]) => `<option value="${safeText(id)}">Send to: ${safeText(id.slice(0, 22))}${id.length > 22 ? '…' : ''}</option>`).join('')
       : '<option value="">Connect a device first</option>';
 
     $('peerList').innerHTML = count
       ? ''
-      : '<div class="text-sm text-slate-500 dark:text-slate-400 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-5 text-center">No devices connected yet. Pair a device using your QR code or Peer ID.</div>';
+      : '<div class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-4 text-center">No devices connected yet. Pair a device in the Pair tab first.</div>';
 
     entries.forEach(([id]) => {
       const card = document.createElement('div');
-      card.className = 'flex items-center justify-between gap-3 rounded-2xl bg-slate-50 dark:bg-slate-900/80 px-4 py-3 border border-slate-200/60 dark:border-slate-800';
+      card.className = 'flex items-center justify-between gap-3 rounded-2xl bg-slate-50 dark:bg-slate-900/80 px-3.5 py-2.5 border border-slate-200/60 dark:border-slate-800 min-w-0';
       const left = document.createElement('div');
-      left.className = 'min-w-0 flex items-center gap-3';
+      left.className = 'min-w-0 flex items-center gap-2.5';
       left.innerHTML = `
         <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
         <div class="min-w-0">
-          <div class="text-xs sm:text-sm font-mono font-semibold truncate">${safeText(id)}</div>
-          <div class="text-[11px] text-emerald-600 dark:text-emerald-400">Encrypted WebRTC DataChannel</div>
+          <div class="text-xs font-mono font-semibold truncate">${safeText(id)}</div>
+          <div class="text-[11px] text-emerald-600 dark:text-emerald-400">Encrypted WebRTC</div>
         </div>
       `;
       const btn = document.createElement('button');
@@ -550,7 +561,6 @@
       log(`Connected to ${id.slice(0, 22)}`, 'success');
       toast('Device connected! Ready to transfer files.');
       updatePeers();
-      // Automatically switch mobile user to the Transfer tab once paired
       if (window.innerWidth < 1024 && currentMobileTab === 'pair') {
         switchMobileTab('transfer');
       }
@@ -601,7 +611,6 @@
     }
   }
 
-  // Custom non-blocking Modal Promise for Incoming File Requests
   function askUserToAcceptOffer(peerId, fileName, fileSize) {
     return new Promise(resolve => {
       $('offerFileName').textContent = fileName;
@@ -638,7 +647,6 @@
     }
     const name = String(offer.name || 'download').slice(0, 240);
 
-    // Switch mobile to Transfer tab so they see the progress bar immediately after accepting
     if (window.innerWidth < 1024) switchMobileTab('transfer');
 
     const accepted = await askUserToAcceptOffer(id, name, size);
@@ -659,7 +667,7 @@
       finishCheckTimer: null
     };
     state.conn.send({ type: 'file-response', transferId: offer.transferId, accepted: true });
-    log(`Receiving ${name} from ${id.slice(0, 18)}…`);
+    log(`Receiving ${name}…`);
     updateTransferProgress(id, 'Receiving', name, 0, 0, size, 0);
   }
 
@@ -873,7 +881,6 @@
     }
   }
 
-  // Single Unified Progress Card per Peer (Never duplicates!)
   function updateTransferProgress(id, statusLabel, fileName, pct, transferredBytes, totalBytes, speedBytesPerSec) {
     const list = $('transferProgressList');
     list.classList.remove('hidden');
@@ -985,7 +992,7 @@
     wrap.classList.remove('hidden');
     selectedFiles.forEach((file, index) => {
       const row = document.createElement('div');
-      row.className = 'flex items-center justify-between gap-3 rounded-xl bg-slate-50 dark:bg-slate-900 px-3.5 py-2.5 text-xs border border-slate-200/60 dark:border-slate-800';
+      row.className = 'flex items-center justify-between gap-3 rounded-xl bg-slate-50 dark:bg-slate-900 px-3.5 py-2.5 text-xs border border-slate-200/60 dark:border-slate-800 min-w-0';
       const label = document.createElement('div');
       label.className = 'min-w-0';
       const name = document.createElement('div');
