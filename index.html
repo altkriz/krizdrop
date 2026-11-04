@@ -2,15 +2,27 @@
 <html lang="en" class="h-full">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0b1220">
-  <meta name="description" content="KrizDrop — anonymous peer-to-peer file sharing directly between browsers.">
-  <title>KrizDrop — Private P2P File Sharing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#080e1b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="KrizDrop — instant, encrypted peer-to-peer file sharing directly between browsers.">
+  <title>KrizDrop — Direct P2P File Transfer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
-      theme: { extend: { fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] } } }
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular']
+          }
+        }
+      }
     };
   </script>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
@@ -18,148 +30,328 @@
   <style>
     :root { color-scheme: light; }
     html.dark { color-scheme: dark; }
-    body { min-height: 100%; }
-    .glass { backdrop-filter: blur(18px); }
-    .drop-active { border-color: #6366f1 !important; background: rgba(99,102,241,.08) !important; }
-    .progress-fill { transition: width .1s linear; }
+    body {
+      min-height: 100dvh;
+      -webkit-tap-highlight-color: transparent;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .glass { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+    .drop-active {
+      border-color: #6366f1 !important;
+      background: rgba(99, 102, 241, 0.1) !important;
+      transform: scale(1.01);
+    }
+    .progress-fill { transition: width 0.12s linear; }
     #qr canvas, #qr img { margin: auto; border-radius: 12px; }
     .scrollbar-thin { scrollbar-width: thin; }
-    button:disabled { opacity: .48; cursor: not-allowed; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    @media (max-width: 1023px) {
+      .mobile-tab-hidden { display: none !important; }
+    }
   </style>
 </head>
-<body class="h-full bg-slate-50 text-slate-900 dark:bg-[#080e1b] dark:text-slate-100 transition-colors">
-  <div class="min-h-screen">
-    <header class="border-b border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-[#0b1220]/85 glass sticky top-0 z-30">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        <a href="#" class="flex items-center gap-3" aria-label="KrizDrop home">
-          <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white grid place-items-center shadow-lg shadow-indigo-600/20">
-            <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 4 14h7l-1 8 10-13h-7l0-7Z" stroke-linejoin="round"/></svg>
+<body class="bg-slate-100 text-slate-900 dark:bg-[#070b14] dark:text-slate-100 transition-colors selection:bg-indigo-500 selection:text-white">
+
+  <!-- Ambient Top Glow (Desktop & Mobile) -->
+  <div class="pointer-events-none fixed inset-x-0 top-0 h-80 bg-gradient-to-b from-indigo-500/10 via-indigo-500/5 to-transparent dark:from-indigo-500/15 dark:via-indigo-950/10 dark:to-transparent -z-10"></div>
+
+  <div class="min-h-[100dvh] flex flex-col pb-20 lg:pb-0">
+
+    <!-- App Header -->
+    <header class="border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-[#0b1220]/80 glass sticky top-0 z-30">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+        <a href="#" class="flex items-center gap-3 group" aria-label="KrizDrop home">
+          <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white grid place-items-center shadow-lg shadow-indigo-600/25 group-hover:scale-105 transition-transform">
+            <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M13 2 4 14h7l-1 8 10-13h-7l0-7Z" stroke-linejoin="round"/></svg>
           </div>
-          <div><div class="font-bold tracking-tight text-lg leading-5">KrizDrop</div><div class="text-[10px] uppercase tracking-[.2em] text-slate-500">Direct file transfer</div></div>
+          <div>
+            <div class="font-extrabold tracking-tight text-lg leading-5 flex items-center gap-2">
+              KrizDrop
+              <span class="hidden sm:inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">P2P WebRTC</span>
+            </div>
+            <div class="text-[10px] uppercase tracking-[.2em] text-slate-500 dark:text-slate-400">Direct Device Transfer</div>
+          </div>
         </a>
-        <div class="flex items-center gap-2">
-          <span id="connectionPill" class="hidden sm:inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"><span class="w-2 h-2 rounded-full bg-amber-500"></span><span id="connectionText">Starting…</span></span>
-          <button id="themeBtn" class="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center" title="Toggle theme" aria-label="Toggle theme">
+
+        <div class="flex items-center gap-2.5">
+          <!-- Always-visible live connection pill -->
+          <span id="connectionPill" class="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800/90 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700/70">
+            <span id="connectionDot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            <span id="connectionText" class="truncate max-w-[130px] sm:max-w-none">Starting…</span>
+          </span>
+
+          <button id="themeBtn" class="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white/60 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center transition-colors" title="Toggle theme" aria-label="Toggle theme">
             <svg id="themeIcon" viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
           </button>
         </div>
       </div>
     </header>
 
-    <main class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-      <section class="text-center max-w-2xl mx-auto mb-9">
-        <div class="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 dark:border-indigo-400/20 dark:bg-indigo-400/10 dark:text-indigo-300 mb-4">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> No account · No cloud file storage
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-5 lg:py-10">
+
+      <!-- Desktop Hero Banner (Compact on Mobile) -->
+      <section class="hidden lg:flex items-center justify-between gap-6 mb-8 pb-6 border-b border-slate-200/70 dark:border-slate-800/70">
+        <div>
+          <div class="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-3">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> End-to-End Encrypted · Zero Cloud Storage · Unlimited Speed
+          </div>
+          <h1 class="text-3xl xl:text-4xl font-extrabold tracking-tight">
+            Send files directly between devices. <span class="text-indigo-600 dark:text-indigo-400">No servers in between.</span>
+          </h1>
         </div>
-        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight">Send files. <span class="text-indigo-600 dark:text-indigo-400">Not through a server.</span></h1>
-        <p class="mt-4 text-slate-600 dark:text-slate-400 leading-relaxed">Connect two browsers and transfer files directly using encrypted WebRTC data channels. Scan a QR code or share your connection link.</p>
+        <div class="flex items-center gap-3 shrink-0">
+          <div class="rounded-2xl bg-white dark:bg-[#101a2b] border border-slate-200/80 dark:border-slate-800 px-4 py-3 text-xs">
+            <div class="text-slate-400 uppercase tracking-wider font-semibold text-[10px]">Active Peers</div>
+            <div id="heroPeerStat" class="text-lg font-extrabold text-slate-800 dark:text-white mt-0.5">0 Connected</div>
+          </div>
+        </div>
       </section>
 
-      <section class="grid lg:grid-cols-[1.05fr_.95fr] gap-5 items-start">
-        <div class="space-y-5">
-          <div class="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101a2b] shadow-sm overflow-hidden">
-            <div class="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
-              <div><div class="text-xs uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Your device</div><h2 class="text-xl font-bold mt-1">Connect & share</h2></div>
-              <span class="text-xs rounded-full px-2.5 py-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300">Anonymous session</span>
+      <!-- Responsive Grid: Tabs on Mobile (<1024px), 12-Col Dashboard on Desktop (>=1024px) -->
+      <section class="grid lg:grid-cols-12 gap-6 items-start">
+
+        <!-- LEFT COLUMN (5 cols on Desktop): PAIRING & IDENTITY -->
+        <div id="tabPanelPair" class="lg:col-span-5 space-y-5">
+
+          <!-- Identity & QR Card -->
+          <div class="rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm overflow-hidden">
+            <div class="p-5 sm:p-6 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-3">
+              <div>
+                <div class="text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Step 1 · Your Device</div>
+                <h2 class="text-lg sm:text-xl font-bold mt-0.5">Share or Scan to Pair</h2>
+              </div>
+              <button id="newSessionBtn" class="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Generate a fresh Peer ID">
+                New ID
+              </button>
             </div>
+
             <div class="p-5 sm:p-6 space-y-5">
-              <div class="grid sm:grid-cols-[1fr_auto] gap-4 items-center">
-                <div class="min-w-0">
-                  <div class="text-sm font-semibold">Your connection ID</div>
-                  <div id="myId" class="mt-1 font-mono text-xs text-slate-500 dark:text-slate-400 break-all">Generating secure ID…</div>
-                  <button id="copyIdBtn" class="mt-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline" disabled>Copy ID</button>
+              <!-- QR + ID Layout (Centered App Card on Mobile, Side-by-Side on Tablet/Desktop) -->
+              <div class="flex flex-col sm:flex-row items-center gap-5">
+                <div id="qr" class="bg-white p-3.5 rounded-2xl w-[156px] h-[156px] shrink-0 grid place-items-center border border-slate-200 shadow-inner">
+                  <span class="text-xs text-slate-400">Preparing QR…</span>
                 </div>
-                <div id="qr" class="bg-white p-3 rounded-2xl min-h-[150px] min-w-[150px] grid place-items-center border border-slate-200"><span class="text-xs text-slate-400">Preparing QR…</span></div>
+
+                <div class="w-full min-w-0 space-y-3 text-center sm:text-left">
+                  <div>
+                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Your Peer ID</div>
+                    <div id="myId" class="mt-1 font-mono text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200 break-all bg-slate-100 dark:bg-slate-900/90 px-3 py-2 rounded-xl border border-slate-200/60 dark:border-slate-800">
+                      Generating secure ID…
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-2">
+                    <button id="copyIdBtn" class="rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-3 py-2.5 text-xs font-semibold transition-colors" disabled>
+                      Copy ID
+                    </button>
+                    <button id="shareLinkBtn" class="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2.5 text-xs font-semibold shadow-sm shadow-indigo-600/20 transition-colors" disabled>
+                      Share Link
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div class="rounded-2xl bg-slate-50 dark:bg-slate-900/70 p-4">
-                <div class="flex items-center justify-between gap-3"><div class="text-sm font-semibold">Your share link</div><button id="copyLinkBtn" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline" disabled>Copy link</button></div>
-                <div id="shareLink" class="mt-2 text-xs text-slate-500 dark:text-slate-400 break-all">Waiting for connection service…</div>
-                <p class="text-[11px] text-slate-500 mt-2">The link contains your temporary peer ID. Share it only with the person you intend to connect.</p>
-              </div>
-              <div class="flex flex-col sm:flex-row gap-2">
-                <button id="newSessionBtn" class="flex-1 rounded-xl bg-slate-900 text-white dark:bg-slate-700 px-4 py-3 text-sm font-semibold hover:opacity-90">Generate new session</button>
-                <button id="disconnectBtn" class="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800" disabled>Disconnect all</button>
+
+              <!-- Direct Link Box -->
+              <div class="rounded-2xl bg-slate-50 dark:bg-slate-900/60 p-3.5 border border-slate-200/60 dark:border-slate-800/80">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">Instant Pairing URL</span>
+                  <button id="copyLinkBtn" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline" disabled>Copy URL</button>
+                </div>
+                <div id="shareLink" class="mt-1 font-mono text-[11px] text-slate-500 dark:text-slate-400 truncate">Waiting for signaling server…</div>
               </div>
             </div>
           </div>
 
-          <div class="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101a2b] shadow-sm p-5 sm:p-6">
+          <!-- Connect to Peer Card -->
+          <div class="rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-5 sm:p-6">
             <div class="flex items-center justify-between gap-3 mb-4">
-              <div><div class="text-xs uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Join someone</div><h2 class="text-xl font-bold mt-1">Connect to a peer</h2></div>
-              <div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-300 grid place-items-center"><svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 12h8m-4-4 4 4-4 4"/><circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></div>
+              <div>
+                <div class="text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Join Another Device</div>
+                <h2 class="text-lg sm:text-xl font-bold mt-0.5">Enter Peer ID</h2>
+              </div>
+              <div class="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 grid place-items-center">
+                <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 12h8m-4-4 4 4-4 4"/><circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+              </div>
             </div>
-            <form id="connectForm" class="flex flex-col sm:flex-row gap-2">
-              <input id="peerIdInput" type="text" autocomplete="off" spellcheck="false" placeholder="Paste peer ID" class="min-w-0 flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-              <button id="connectBtn" class="rounded-xl bg-indigo-600 text-white px-5 py-3 text-sm font-semibold hover:bg-indigo-700">Connect</button>
+            <form id="connectForm" class="flex flex-col sm:flex-row gap-2.5">
+              <input id="peerIdInput" type="text" autocomplete="off" spellcheck="false" placeholder="Paste other device's Peer ID…" class="min-w-0 flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-4 py-3 text-sm font-mono outline-none focus:ring-2 focus:ring-indigo-500">
+              <button id="connectBtn" class="rounded-xl bg-indigo-600 text-white px-5 py-3 text-sm font-semibold hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 transition-colors">
+                Connect
+              </button>
             </form>
-            <p class="text-xs text-slate-500 mt-3">You can also scan the sender's QR code with your phone camera. The link opens this page and starts pairing.</p>
           </div>
         </div>
 
-        <div class="space-y-5">
-          <div class="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101a2b] shadow-sm p-5 sm:p-6">
-            <div class="flex items-center justify-between mb-4"><div><div class="text-xs uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Peers</div><h2 class="text-xl font-bold mt-1">Connected devices</h2></div><span id="peerCount" class="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs font-bold">0 connected</span></div>
-            <div id="peerList" class="space-y-3"><div class="text-sm text-slate-500 dark:text-slate-400 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 p-5 text-center">No devices connected yet.<br><span class="text-xs">Your connected peers will appear here.</span></div></div>
+        <!-- RIGHT COLUMN (7 cols on Desktop): TRANSFER & PEERS & ACTIVITY -->
+        <div id="tabPanelTransfer" class="lg:col-span-7 space-y-5 mobile-tab-hidden">
+
+          <!-- Connected Devices Bar -->
+          <div class="rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-5 sm:p-6">
+            <div class="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <div class="text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Active Channels</div>
+                <h2 class="text-lg sm:text-xl font-bold mt-0.5">Connected Devices</h2>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="peerCount" class="rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300 px-3 py-1 text-xs font-bold">0 connected</span>
+                <button id="disconnectBtn" class="rounded-xl border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 px-3 py-1 text-xs font-semibold hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors" disabled>
+                  Disconnect All
+                </button>
+              </div>
+            </div>
+            <div id="peerList" class="space-y-2.5">
+              <div class="text-sm text-slate-500 dark:text-slate-400 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-5 text-center">
+                No devices connected yet. Pair a device using your QR code or Peer ID.
+              </div>
+            </div>
           </div>
 
-          <div class="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101a2b] shadow-sm p-5 sm:p-6">
-            <div class="flex items-center justify-between gap-3 mb-4"><div><div class="text-xs uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Transfer center</div><h2 class="text-xl font-bold mt-1">Send files</h2></div><span class="text-xs text-slate-500">Both ways</span></div>
-            <div id="dropZone" class="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 p-7 text-center transition-colors cursor-pointer hover:border-indigo-400">
+          <!-- File Drop & Live Transfer Center -->
+          <div class="rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-5 sm:p-6">
+            <div class="flex items-center justify-between gap-3 mb-4">
+              <div>
+                <div class="text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Transfer Center</div>
+                <h2 class="text-lg sm:text-xl font-bold mt-0.5">Send & Receive Files</h2>
+              </div>
+              <span class="text-xs font-medium text-slate-500 dark:text-slate-400">16KB SCTP Stream</span>
+            </div>
+
+            <!-- Interactive Drop Zone -->
+            <div id="dropZone" class="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-900/40 p-6 sm:p-8 text-center transition-all cursor-pointer hover:border-indigo-500 hover:bg-indigo-50/20 dark:hover:bg-indigo-950/10">
               <input id="fileInput" type="file" multiple class="hidden">
-              <div class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-300 grid place-items-center mx-auto mb-3"><svg viewBox="0 0 24 24" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4m-5 5 5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></div>
-              <div class="font-semibold text-sm">Drop files here or <span class="text-indigo-600 dark:text-indigo-400">browse</span></div>
-              <p class="text-xs text-slate-500 mt-2">Any file type · Multiple files supported</p>
+              <div class="w-14 h-14 rounded-2xl bg-indigo-600/10 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-400 grid place-items-center mx-auto mb-3 shadow-inner">
+                <svg viewBox="0 0 24 24" class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4m-5 5 5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+              </div>
+              <div class="font-bold text-sm sm:text-base">Tap to choose files <span class="hidden sm:inline">or drag & drop here</span></div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Photos, videos, ZIPs, documents · Up to 2 GB per file</p>
             </div>
-            <div id="selectedFiles" class="hidden mt-4 space-y-2"></div>
-            <div id="transferProgressList" class="hidden mt-4 space-y-2"></div>
-            <div class="mt-4 flex flex-col sm:flex-row gap-2">
-              <select id="targetPeer" class="flex-1 min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-sm" disabled><option value="">Connect a device first</option></select>
-              <button id="sendBtn" class="rounded-xl bg-indigo-600 text-white px-5 py-3 text-sm font-semibold hover:bg-indigo-700" disabled>Send files</button>
+
+            <!-- Queued Files to Send -->
+            <div id="selectedFiles" class="hidden mt-4 space-y-2 max-h-48 overflow-y-auto scrollbar-thin"></div>
+
+            <!-- LIVE SINGLE PROGRESS HUD (Never duplicates!) -->
+            <div id="transferProgressList" class="hidden mt-4 space-y-3"></div>
+
+            <!-- Target Peer & Send Action -->
+            <div class="mt-4 flex flex-col sm:flex-row gap-2.5">
+              <select id="targetPeer" class="flex-1 min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500" disabled>
+                <option value="">Connect a device first</option>
+              </select>
+              <button id="sendBtn" class="rounded-xl bg-indigo-600 text-white px-6 py-3.5 text-sm font-bold hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all" disabled>
+                Send Files Now
+              </button>
             </div>
-            <p class="text-[11px] text-slate-500 mt-3">The receiving person must accept each incoming file before transfer begins.</p>
           </div>
 
-          <div class="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#101a2b] shadow-sm p-5 sm:p-6">
-            <div class="flex items-center justify-between mb-3"><h2 class="font-bold">Activity</h2><button id="clearLogBtn" class="text-xs text-slate-500 hover:text-indigo-600">Clear</button></div>
-            <div id="activity" class="space-y-2 max-h-52 overflow-y-auto scrollbar-thin text-xs text-slate-500 dark:text-slate-400"><div>Waiting for activity…</div></div>
+          <!-- Desktop Activity Log (On Mobile this is shown in the 3rd Tab) -->
+          <div id="tabPanelActivity" class="rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-5 sm:p-6 mobile-tab-hidden">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <div class="text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Diagnostics</div>
+                <h2 class="text-base font-bold mt-0.5">Session Activity</h2>
+              </div>
+              <button id="clearLogBtn" class="text-xs font-semibold text-slate-500 hover:text-indigo-600">Clear Log</button>
+            </div>
+            <div id="activity" class="space-y-2 max-h-48 overflow-y-auto scrollbar-thin text-xs text-slate-500 dark:text-slate-400 font-mono">
+              <div>Waiting for activity…</div>
+            </div>
           </div>
+
         </div>
       </section>
-
-      <section class="mt-8 grid sm:grid-cols-3 gap-3">
-        <div class="rounded-2xl bg-indigo-50 dark:bg-indigo-400/5 border border-indigo-100 dark:border-indigo-400/10 p-4"><div class="font-semibold text-sm">Direct browser transfer</div><p class="text-xs text-slate-600 dark:text-slate-400 mt-1">Files are sent over WebRTC DataChannels, not uploaded to KrizDrop.</p></div>
-        <div class="rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4"><div class="font-semibold text-sm">Encrypted in transit</div><p class="text-xs text-slate-600 dark:text-slate-400 mt-1">WebRTC uses DTLS encryption for data-channel traffic.</p></div>
-        <div class="rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4"><div class="font-semibold text-sm">Temporary identity</div><p class="text-xs text-slate-600 dark:text-slate-400 mt-1">No account is created. Refresh or start a new session to get another peer ID.</p></div>
-      </section>
-      <footer class="text-center text-xs text-slate-500 py-8">KrizDrop · A KrizTech experiment · Files stay on your devices unless you choose to share them.</footer>
     </main>
+
+    <!-- MOBILE NATIVE BOTTOM NAVIGATION BAR (<1024px) -->
+    <nav class="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-slate-200/90 dark:border-slate-800/90 bg-white/90 dark:bg-[#0b1220]/90 glass">
+      <div class="grid grid-cols-3 h-16 max-w-md mx-auto px-2">
+        <button data-tab="pair" class="mobile-tab-btn flex flex-col items-center justify-center gap-1 text-indigo-600 dark:text-indigo-400 font-semibold">
+          <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3m0 4h4v-4m-7 4h3"/></svg>
+          <span class="text-[11px]">Pair & QR</span>
+        </button>
+
+        <button data-tab="transfer" class="mobile-tab-btn relative flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 font-medium">
+          <div class="relative">
+            <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4m-5 5 5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+            <span id="mobilePeerBadge" class="hidden absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold grid place-items-center">1</span>
+          </div>
+          <span class="text-[11px]">Transfer</span>
+        </button>
+
+        <button data-tab="activity" class="mobile-tab-btn flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 font-medium">
+          <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+          <span class="text-[11px]">Activity</span>
+        </button>
+      </div>
+    </nav>
   </div>
 
-  <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 hidden max-w-[calc(100%-2rem)] rounded-xl bg-slate-900 text-white px-4 py-3 text-sm shadow-xl"></div>
+  <!-- NATIVE-STYLE INCOMING FILE OFFER MODAL (Replaces ugly window.confirm) -->
+  <div id="offerModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-950/60 backdrop-blur-sm p-3 sm:p-4">
+    <div class="w-full max-w-md rounded-3xl bg-white dark:bg-[#111a2e] border border-slate-200 dark:border-slate-800 p-6 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-200">
+      <div class="flex items-center gap-3.5">
+        <div class="w-12 h-12 rounded-2xl bg-indigo-600/10 dark:bg-indigo-400/15 text-indigo-600 dark:text-indigo-400 grid place-items-center shrink-0">
+          <svg viewBox="0 0 24 24" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        </div>
+        <div class="min-w-0">
+          <div class="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Incoming File Request</div>
+          <h3 id="offerFileName" class="text-base font-extrabold truncate mt-0.5">video.mp4</h3>
+        </div>
+      </div>
+
+      <div class="mt-4 rounded-2xl bg-slate-50 dark:bg-slate-900/90 p-3.5 space-y-1.5 text-xs border border-slate-200/60 dark:border-slate-800">
+        <div class="flex justify-between gap-2">
+          <span class="text-slate-500">File Size</span>
+          <span id="offerFileSize" class="font-bold text-slate-800 dark:text-slate-200">0 MB</span>
+        </div>
+        <div class="flex justify-between gap-2">
+          <span class="text-slate-500">From Peer</span>
+          <span id="offerPeerId" class="font-mono text-slate-700 dark:text-slate-300 truncate max-w-[200px]">peer-id</span>
+        </div>
+      </div>
+
+      <div class="mt-5 grid grid-cols-2 gap-3">
+        <button id="declineOfferBtn" class="rounded-xl border border-slate-200 dark:border-slate-700 py-3 text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+          Decline
+        </button>
+        <button id="acceptOfferBtn" class="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white py-3 text-sm font-bold shadow-lg shadow-indigo-600/25 transition-colors">
+          Accept & Download
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-20 lg:bottom-6 left-1/2 -translate-x-1/2 z-50 hidden max-w-[calc(100%-2rem)] rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold px-4 py-3 text-xs sm:text-sm shadow-2xl"></div>
 
 <script>
 (() => {
   'use strict';
 
   const $ = id => document.getElementById(id);
-  // 16 KB is the universal optimal WebRTC SCTP chunk size for high throughput without fragmentation
-  const CHUNK_SIZE = 16 * 1024;
-  const MAX_BUFFERED = 1024 * 1024;      // Pause sending at 1 MB buffered
-  const LOW_BUFFER_THRESHOLD = 256 * 1024; // Resume at 256 KB buffered
+  const CHUNK_SIZE = 16 * 1024; // 16 KB optimal WebRTC SCTP chunk size
+  const MAX_BUFFERED = 1024 * 1024;
+  const LOW_BUFFER_THRESHOLD = 256 * 1024;
+
   const peers = new Map();
   let peer = null;
   let myPeerId = '';
   let selectedFiles = [];
   let toastTimer = null;
+  let currentMobileTab = 'pair';
 
   const fmtBytes = n => {
     if (!Number.isFinite(n) || n < 0) return '—';
     if (n < 1024) return `${n} B`;
-    const units = ['KB','MB','GB','TB'];
-    let i = -1; do { n /= 1024; i++; } while (n >= 1024 && i < units.length - 1);
+    const units = ['KB', 'MB', 'GB', 'TB'];
+    let i = -1;
+    do { n /= 1024; i++; } while (n >= 1024 && i < units.length - 1);
     return `${n.toFixed(n >= 100 ? 0 : n >= 10 ? 1 : 2)} ${units[i]}`;
   };
-  const safeText = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  const safeText = value => String(value ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
 
   function toast(message) {
     $('toast').textContent = message;
@@ -172,21 +364,60 @@
     const row = document.createElement('div');
     row.className = 'flex gap-2 items-start';
     const dot = document.createElement('span');
-    dot.className = `mt-1 w-1.5 h-1.5 shrink-0 rounded-full ${type === 'error' ? 'bg-rose-500' : type === 'success' ? 'bg-emerald-500' : 'bg-indigo-400'}`;
+    dot.className = `mt-1.5 w-1.5 h-1.5 shrink-0 rounded-full ${
+      type === 'error' ? 'bg-rose-500' : type === 'success' ? 'bg-emerald-500' : 'bg-indigo-400'
+    }`;
     const text = document.createElement('span');
     text.textContent = `${new Date().toLocaleTimeString()} · ${message}`;
     row.append(dot, text);
-    if ($('activity').firstElementChild?.textContent === 'Waiting for activity…') $('activity').innerHTML = '';
+    if ($('activity').firstElementChild?.textContent === 'Waiting for activity…') {
+      $('activity').innerHTML = '';
+    }
     $('activity').prepend(row);
   }
 
   function setStatus(text, good = false) {
     $('connectionText').textContent = text;
-    const dot = $('connectionPill').querySelector('span');
-    dot.className = `w-2 h-2 rounded-full ${good ? 'bg-emerald-500' : 'bg-amber-500'}`;
-    $('connectionPill').classList.remove('hidden');
+    $('connectionDot').className = `w-2 h-2 rounded-full ${
+      good ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
+    }`;
   }
 
+  // Mobile App Tab Switching (<1024px)
+  function switchMobileTab(tabName) {
+    currentMobileTab = tabName;
+    const isPair = tabName === 'pair';
+    const isTransfer = tabName === 'transfer';
+    const isActivity = tabName === 'activity';
+
+    $('tabPanelPair').classList.toggle('mobile-tab-hidden', !isPair);
+    $('tabPanelTransfer').classList.toggle('mobile-tab-hidden', !(isTransfer || isActivity));
+
+    // Inside right column, toggle transfer cards vs activity card on mobile
+    const rightChildren = [...$('tabPanelTransfer').children];
+    rightChildren.forEach(el => {
+      if (el.id === 'tabPanelActivity') {
+        el.classList.toggle('mobile-tab-hidden', !isActivity);
+      } else {
+        el.classList.toggle('mobile-tab-hidden', isActivity);
+      }
+    });
+
+    document.querySelectorAll('.mobile-tab-btn').forEach(btn => {
+      const active = btn.dataset.tab === tabName;
+      btn.className = `mobile-tab-btn relative flex flex-col items-center justify-center gap-1 ${
+        active
+          ? 'text-indigo-600 dark:text-indigo-400 font-bold'
+          : 'text-slate-500 dark:text-slate-400 font-medium'
+      }`;
+    });
+  }
+
+  document.querySelectorAll('.mobile-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchMobileTab(btn.dataset.tab));
+  });
+
+  // Theme management
   function setTheme(mode) {
     const dark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     document.documentElement.classList.toggle('dark', dark);
@@ -207,47 +438,88 @@
   }
 
   function renderIdentity() {
-    $('myId').textContent = myPeerId || 'Not connected to signaling server';
+    $('myId').textContent = myPeerId || 'Connecting…';
     $('shareLink').textContent = myPeerId ? makeShareUrl(myPeerId) : 'Unavailable';
     $('copyIdBtn').disabled = !myPeerId;
     $('copyLinkBtn').disabled = !myPeerId;
+    $('shareLinkBtn').disabled = !myPeerId;
     $('qr').innerHTML = '';
     if (myPeerId && window.QRCode) {
-      new QRCode($('qr'), { text: makeShareUrl(myPeerId), width: 128, height: 128, colorDark: '#0f172a', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
-    } else if (!window.QRCode) $('qr').textContent = 'QR library unavailable';
+      new QRCode($('qr'), {
+        text: makeShareUrl(myPeerId),
+        width: 132,
+        height: 132,
+        colorDark: '#0f172a',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    } else if (!window.QRCode) {
+      $('qr').textContent = 'QR unavailable';
+    }
   }
 
-  async function copyText(value) {
-    try { await navigator.clipboard.writeText(value); toast('Copied to clipboard'); }
-    catch { toast('Clipboard unavailable. Select and copy the text manually.'); }
+  async function copyText(value, label = 'Copied to clipboard') {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast(label);
+    } catch {
+      toast('Clipboard unavailable. Copy manually.');
+    }
   }
-  $('copyIdBtn').addEventListener('click', () => copyText(myPeerId));
-  $('copyLinkBtn').addEventListener('click', () => copyText(makeShareUrl(myPeerId)));
+
+  $('copyIdBtn').addEventListener('click', () => copyText(myPeerId, 'Peer ID copied'));
+  $('copyLinkBtn').addEventListener('click', () => copyText(makeShareUrl(myPeerId), 'Pairing link copied'));
+  $('shareLinkBtn').addEventListener('click', async () => {
+    const url = makeShareUrl(myPeerId);
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'KrizDrop File Transfer', text: 'Connect with my device on KrizDrop:', url });
+        return;
+      } catch {}
+    }
+    copyText(url, 'Pairing link copied');
+  });
 
   function updatePeers() {
     const entries = [...peers.entries()].filter(([, p]) => p.conn.open);
-    $('peerCount').textContent = `${entries.length} connected`;
-    $('disconnectBtn').disabled = entries.length === 0;
-    $('targetPeer').disabled = entries.length === 0;
-    $('sendBtn').disabled = entries.length === 0 || selectedFiles.length === 0;
-    $('targetPeer').innerHTML = entries.length
-      ? entries.map(([id]) => `<option value="${safeText(id)}">${safeText(id.slice(0, 22))}${id.length > 22 ? '…' : ''}</option>`).join('')
+    const count = entries.length;
+    $('peerCount').textContent = `${count} connected`;
+    $('heroPeerStat').textContent = `${count} Connected`;
+    $('disconnectBtn').disabled = count === 0;
+    $('targetPeer').disabled = count === 0;
+    $('sendBtn').disabled = count === 0 || selectedFiles.length === 0;
+
+    // Mobile badge
+    const badge = $('mobilePeerBadge');
+    if (count > 0) {
+      badge.textContent = String(count);
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+
+    $('targetPeer').innerHTML = count
+      ? entries.map(([id]) => `<option value="${safeText(id)}">Send to: ${safeText(id.slice(0, 24))}${id.length > 24 ? '…' : ''}</option>`).join('')
       : '<option value="">Connect a device first</option>';
-    $('peerList').innerHTML = entries.length ? '' : '<div class="text-sm text-slate-500 dark:text-slate-400 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 p-5 text-center">No devices connected yet.<br><span class="text-xs">Your connected peers will appear here.</span></div>';
+
+    $('peerList').innerHTML = count
+      ? ''
+      : '<div class="text-sm text-slate-500 dark:text-slate-400 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-5 text-center">No devices connected yet. Pair a device using your QR code or Peer ID.</div>';
+
     entries.forEach(([id]) => {
       const card = document.createElement('div');
-      card.className = 'flex items-center justify-between gap-3 rounded-2xl bg-slate-50 dark:bg-slate-900/70 p-3';
+      card.className = 'flex items-center justify-between gap-3 rounded-2xl bg-slate-50 dark:bg-slate-900/80 px-4 py-3 border border-slate-200/60 dark:border-slate-800';
       const left = document.createElement('div');
-      left.className = 'min-w-0';
-      const title = document.createElement('div');
-      title.className = 'text-sm font-semibold truncate';
-      title.textContent = id;
-      const sub = document.createElement('div');
-      sub.className = 'text-xs text-emerald-600 dark:text-emerald-400 mt-1';
-      sub.textContent = 'Connected · encrypted WebRTC';
-      left.append(title, sub);
+      left.className = 'min-w-0 flex items-center gap-3';
+      left.innerHTML = `
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+        <div class="min-w-0">
+          <div class="text-xs sm:text-sm font-mono font-semibold truncate">${safeText(id)}</div>
+          <div class="text-[11px] text-emerald-600 dark:text-emerald-400">Encrypted WebRTC DataChannel</div>
+        </div>
+      `;
       const btn = document.createElement('button');
-      btn.className = 'text-xs font-semibold text-rose-600 hover:underline shrink-0';
+      btn.className = 'text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline shrink-0';
       btn.textContent = 'Remove';
       btn.addEventListener('click', () => peers.get(id)?.conn.close());
       card.append(left, btn);
@@ -257,11 +529,11 @@
 
   function connectTo(id) {
     id = String(id || '').trim();
-    if (!peer || !peer.open) { toast('Your connection is still starting. Try again in a moment.'); return; }
-    if (!id || id === myPeerId) { toast('Enter another device’s peer ID.'); return; }
+    if (!peer || !peer.open) { toast('Signaling is still starting. Wait a moment.'); return; }
+    if (!id || id === myPeerId) { toast('Enter another device’s Peer ID.'); return; }
     if (peers.has(id) && peers.get(id).conn.open) { toast('Already connected to this device.'); return; }
     log(`Connecting to ${id.slice(0, 18)}…`);
-    const conn = peer.connect(id, { reliable: true, serialization: 'binary', metadata: { app: 'KrizDrop', version: 1 } });
+    const conn = peer.connect(id, { reliable: true, serialization: 'binary', metadata: { app: 'KrizDrop', version: 2 } });
     attachConnection(conn);
   }
 
@@ -276,8 +548,13 @@
         }
       } catch {}
       log(`Connected to ${id.slice(0, 22)}`, 'success');
+      toast('Device connected! Ready to transfer files.');
       updatePeers();
-      try { conn.send({ type: 'hello', app: 'KrizDrop', version: 1 }); } catch {}
+      // Automatically switch mobile user to the Transfer tab once paired
+      if (window.innerWidth < 1024 && currentMobileTab === 'pair') {
+        switchMobileTab('transfer');
+      }
+      try { conn.send({ type: 'hello', app: 'KrizDrop', version: 2 }); } catch {}
     });
     conn.on('data', data => handleData(id, data));
     conn.on('close', () => {
@@ -294,11 +571,7 @@
   }
 
   function isBinaryPayload(data) {
-    return (
-      data instanceof ArrayBuffer ||
-      ArrayBuffer.isView(data) ||
-      data instanceof Blob
-    );
+    return data instanceof ArrayBuffer || ArrayBuffer.isView(data) || data instanceof Blob;
   }
 
   function handleData(id, data) {
@@ -328,7 +601,31 @@
     }
   }
 
-  function receiveOffer(id, offer) {
+  // Custom non-blocking Modal Promise for Incoming File Requests
+  function askUserToAcceptOffer(peerId, fileName, fileSize) {
+    return new Promise(resolve => {
+      $('offerFileName').textContent = fileName;
+      $('offerFileSize').textContent = fmtBytes(fileSize);
+      $('offerPeerId').textContent = peerId;
+      $('offerModal').classList.remove('hidden');
+      $('offerModal').classList.add('flex');
+
+      const cleanup = decision => {
+        $('offerModal').classList.add('hidden');
+        $('offerModal').classList.remove('flex');
+        $('acceptOfferBtn').removeEventListener('click', onAccept);
+        $('declineOfferBtn').removeEventListener('click', onDecline);
+        resolve(decision);
+      };
+      const onAccept = () => cleanup(true);
+      const onDecline = () => cleanup(false);
+
+      $('acceptOfferBtn').addEventListener('click', onAccept);
+      $('declineOfferBtn').addEventListener('click', onDecline);
+    });
+  }
+
+  async function receiveOffer(id, offer) {
     const state = peers.get(id);
     if (!state || state.incoming) {
       state?.conn.send({ type: 'file-response', transferId: offer.transferId, accepted: false, reason: 'Receiver is busy' });
@@ -340,12 +637,17 @@
       return;
     }
     const name = String(offer.name || 'download').slice(0, 240);
-    const accepted = window.confirm(`${id}\n\nwants to send you:\n${name}\n${fmtBytes(size)}\n\nAccept this file?`);
+
+    // Switch mobile to Transfer tab so they see the progress bar immediately after accepting
+    if (window.innerWidth < 1024) switchMobileTab('transfer');
+
+    const accepted = await askUserToAcceptOffer(id, name, size);
     if (!accepted) {
       state.conn.send({ type: 'file-response', transferId: offer.transferId, accepted: false, reason: 'Declined by recipient' });
       log(`Declined ${name}`);
       return;
     }
+
     state.incoming = {
       transferId: offer.transferId,
       name,
@@ -358,7 +660,7 @@
     };
     state.conn.send({ type: 'file-response', transferId: offer.transferId, accepted: true });
     log(`Receiving ${name} from ${id.slice(0, 18)}…`);
-    updateTransferProgress(id, `Receiving ${name}`, 0, 0, size, 0);
+    updateTransferProgress(id, 'Receiving', name, 0, 0, size, 0);
   }
 
   function handleBinary(id, payload) {
@@ -398,10 +700,9 @@
       const elapsedSec = Math.max((now - rx.started) / 1000, 0.001);
       const speed = rx.received / elapsedSec;
       const pct = rx.size === 0 ? 100 : Math.min(100, (rx.received / rx.size) * 100);
-      updateTransferProgress(id, `Receiving ${rx.name}`, pct, rx.received, rx.size, speed);
+      updateTransferProgress(id, 'Receiving', rx.name, pct, rx.received, rx.size, speed);
     }
 
-    // If 'file-end' already arrived slightly before the last binary chunk finished unpacking, finalize now
     if (rx.endSignaled && rx.received === rx.size) {
       completeIncomingDownload(id);
     }
@@ -418,16 +719,15 @@
       return;
     }
 
-    // Give any trailing in-flight binary chunks up to 3 seconds to finish arriving
     clearTimeout(rx.finishCheckTimer);
     rx.finishCheckTimer = setTimeout(() => {
       if (!state.incoming || state.incoming.transferId !== message.transferId) return;
       if (state.incoming.received === state.incoming.size) {
         completeIncomingDownload(id);
       } else {
-        state.conn.send({ type: 'file-error', message: `File data was incomplete (${fmtBytes(state.incoming.received)} / ${fmtBytes(state.incoming.size)})` });
+        state.conn.send({ type: 'file-error', message: `Incomplete (${fmtBytes(state.incoming.received)} / ${fmtBytes(state.incoming.size)})` });
         toast(`Incomplete transfer: ${state.incoming.name}`);
-        log(`Incomplete transfer for ${state.incoming.name}: got ${fmtBytes(state.incoming.received)} of ${fmtBytes(state.incoming.size)}`, 'error');
+        log(`Incomplete transfer for ${state.incoming.name}`, 'error');
         state.incoming = null;
         removeTransferProgress(id);
       }
@@ -441,7 +741,7 @@
     clearTimeout(rx.finishCheckTimer);
 
     const elapsedSec = Math.max((performance.now() - rx.started) / 1000, 0.001);
-    updateTransferProgress(id, `Received ${rx.name}`, 100, rx.size, rx.size, rx.size / elapsedSec);
+    updateTransferProgress(id, 'Completed', rx.name, 100, rx.size, rx.size, rx.size / elapsedSec);
 
     const blob = new Blob(rx.parts, { type: rx.mime });
     const a = document.createElement('a');
@@ -454,8 +754,8 @@
     setTimeout(() => URL.revokeObjectURL(url), 60000);
 
     state.conn.send({ type: 'file-response', transferId: rx.transferId, completed: true, name: rx.name });
-    log(`Received ${rx.name} (${fmtBytes(rx.size)})`, 'success');
-    toast(`Downloaded ${rx.name}`);
+    log(`Downloaded ${rx.name} (${fmtBytes(rx.size)})`, 'success');
+    toast(`Saved ${rx.name}`);
     state.incoming = null;
     setTimeout(() => removeTransferProgress(id), 3500);
   }
@@ -475,7 +775,7 @@
       state.pending = null;
       state.busy = false;
       log(`Sent ${name} successfully`, 'success');
-      toast('File transfer completed');
+      toast(`Delivered ${name}`);
       setTimeout(() => removeTransferProgress(id), 3500);
       return;
     }
@@ -483,7 +783,7 @@
       state.pending = null;
       state.busy = false;
       removeTransferProgress(id);
-      toast(message.reason || 'File declined');
+      toast(message.reason || 'Transfer declined');
       log(`File offer declined by ${id.slice(0, 18)}`);
       return;
     }
@@ -519,9 +819,7 @@
       const startTime = performance.now();
       let offset = 0;
 
-      updateTransferProgress(id, `Sending ${file.name}`, 0, 0, totalSize, 0);
-
-      // Read in 2 MB slices from disk to avoid thousands of tiny File.slice() async operations
+      updateTransferProgress(id, 'Sending', file.name, 0, 0, totalSize, 0);
       const READ_BLOCK_SIZE = 2 * 1024 * 1024;
 
       while (offset < totalSize) {
@@ -552,14 +850,12 @@
             const elapsedSec = Math.max((now - startTime) / 1000, 0.001);
             const speed = totalSent / elapsedSec;
             const pct = totalSize === 0 ? 100 : Math.min(100, (totalSent / totalSize) * 100);
-            updateTransferProgress(id, `Sending ${file.name}`, pct, totalSent, totalSize, speed);
+            updateTransferProgress(id, 'Sending', file.name, pct, totalSent, totalSize, speed);
           }
         }
-
         offset = blockEnd;
       }
 
-      // Wait for the WebRTC dataChannel buffer to drain before sending file-end
       const dc = state.conn.dataChannel;
       while (dc && dc.bufferedAmount > 0 && state.conn.open) {
         await new Promise(r => setTimeout(r, 20));
@@ -572,32 +868,35 @@
       state.pending = null;
       state.busy = false;
       removeTransferProgress(id);
-      toast(`Could not send file: ${error.message}`);
+      toast(`Transfer failed: ${error.message}`);
       log(`Failed to send ${file.name}: ${error.message}`, 'error');
     }
   }
 
-  function updateTransferProgress(id, labelText, pct, transferredBytes, totalBytes, speedBytesPerSec) {
+  // Single Unified Progress Card per Peer (Never duplicates!)
+  function updateTransferProgress(id, statusLabel, fileName, pct, transferredBytes, totalBytes, speedBytesPerSec) {
     const list = $('transferProgressList');
     list.classList.remove('hidden');
 
-    // Use a data attribute or direct Map/ID lookup without CSS.escape mismatch!
     const domId = `progress-${id}`;
     let row = document.getElementById(domId);
 
     if (!row) {
       row = document.createElement('div');
       row.id = domId;
-      row.className = 'rounded-xl bg-slate-50 dark:bg-slate-900 p-3 border border-slate-200/60 dark:border-slate-800';
+      row.className = 'rounded-2xl bg-indigo-50/60 dark:bg-slate-900/95 p-4 border border-indigo-200/70 dark:border-indigo-500/20 shadow-sm';
       row.innerHTML = `
-        <div class="flex justify-between items-center gap-3 text-xs mb-1.5">
-          <span class="transfer-title truncate font-semibold"></span>
-          <span class="transfer-pct shrink-0 font-bold text-indigo-600 dark:text-indigo-400">0%</span>
+        <div class="flex justify-between items-center gap-3 mb-2">
+          <div class="min-w-0">
+            <span class="transfer-badge text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-indigo-600 text-white">Sending</span>
+            <div class="transfer-title text-sm font-bold truncate mt-1"></div>
+          </div>
+          <div class="transfer-pct text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 shrink-0 font-mono">0%</div>
         </div>
-        <div class="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-          <div class="progress-fill h-full bg-indigo-600 rounded-full" style="width: 0%"></div>
+        <div class="h-2.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+          <div class="progress-fill h-full bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full" style="width: 0%"></div>
         </div>
-        <div class="flex justify-between items-center text-[11px] text-slate-500 mt-1.5">
+        <div class="flex justify-between items-center text-xs text-slate-500 dark:text-slate-400 mt-2 font-mono">
           <span class="transfer-bytes">0 B / 0 B</span>
           <span class="transfer-speed">0 B/s</span>
         </div>
@@ -605,11 +904,16 @@
       list.append(row);
     }
 
-    row.querySelector('.transfer-title').textContent = labelText;
+    const remainingBytes = Math.max(0, totalBytes - transferredBytes);
+    const etaSec = speedBytesPerSec > 0 ? Math.ceil(remainingBytes / speedBytesPerSec) : 0;
+    const etaStr = pct >= 100 ? 'Done' : etaSec > 0 ? ` · ~${etaSec}s left` : '';
+
+    row.querySelector('.transfer-badge').textContent = statusLabel;
+    row.querySelector('.transfer-title').textContent = fileName;
     row.querySelector('.transfer-pct').textContent = `${pct.toFixed(0)}%`;
     row.querySelector('.progress-fill').style.width = `${pct}%`;
     row.querySelector('.transfer-bytes').textContent = `${fmtBytes(transferredBytes)} / ${fmtBytes(totalBytes)}`;
-    row.querySelector('.transfer-speed').textContent = speedBytesPerSec > 0 ? `${fmtBytes(speedBytesPerSec)}/s` : '';
+    row.querySelector('.transfer-speed').textContent = speedBytesPerSec > 0 ? `${fmtBytes(speedBytesPerSec)}/s${etaStr}` : '';
   }
 
   function removeTransferProgress(id) {
@@ -624,9 +928,10 @@
   async function sendSelectedFiles() {
     const id = $('targetPeer').value;
     const state = peers.get(id);
-    if (!state || !state.conn.open) { toast('Choose a connected device.'); return; }
-    if (state.busy) { toast('This peer is already receiving a transfer from you.'); return; }
+    if (!state || !state.conn.open) { toast('Connect a device first.'); return; }
+    if (state.busy) { toast('Transfer already in progress with this peer.'); return; }
     if (!selectedFiles.length) return;
+
     const files = [...selectedFiles];
     selectedFiles = [];
     renderSelectedFiles();
@@ -644,7 +949,8 @@
         size: file.size,
         mime: file.type || 'application/octet-stream'
       });
-      log(`Offered ${file.name} (${fmtBytes(file.size)}) to ${id.slice(0, 18)}`);
+      log(`Offered ${file.name} (${fmtBytes(file.size)})`);
+      toast(`Waiting for peer to accept ${file.name}…`);
 
       const accepted = await new Promise(resolve => {
         const timeout = setTimeout(() => resolve(false), 120000);
@@ -679,14 +985,26 @@
     wrap.classList.remove('hidden');
     selectedFiles.forEach((file, index) => {
       const row = document.createElement('div');
-      row.className = 'flex items-center justify-between gap-3 rounded-xl bg-slate-50 dark:bg-slate-900 px-3 py-2 text-xs';
-      const label = document.createElement('div'); label.className = 'min-w-0';
-      const name = document.createElement('div'); name.className = 'font-semibold truncate'; name.textContent = file.name;
-      const size = document.createElement('div'); size.className = 'text-slate-500 mt-0.5'; size.textContent = fmtBytes(file.size);
+      row.className = 'flex items-center justify-between gap-3 rounded-xl bg-slate-50 dark:bg-slate-900 px-3.5 py-2.5 text-xs border border-slate-200/60 dark:border-slate-800';
+      const label = document.createElement('div');
+      label.className = 'min-w-0';
+      const name = document.createElement('div');
+      name.className = 'font-bold truncate';
+      name.textContent = file.name;
+      const size = document.createElement('div');
+      size.className = 'text-slate-500 mt-0.5 font-mono';
+      size.textContent = fmtBytes(file.size);
       label.append(name, size);
-      const remove = document.createElement('button'); remove.className = 'text-rose-600 font-semibold'; remove.textContent = 'Remove';
-      remove.addEventListener('click', () => { selectedFiles.splice(index, 1); renderSelectedFiles(); updatePeers(); });
-      row.append(label, remove); wrap.append(row);
+      const remove = document.createElement('button');
+      remove.className = 'text-rose-600 dark:text-rose-400 font-semibold shrink-0';
+      remove.textContent = 'Remove';
+      remove.addEventListener('click', () => {
+        selectedFiles.splice(index, 1);
+        renderSelectedFiles();
+        updatePeers();
+      });
+      row.append(label, remove);
+      wrap.append(row);
     });
   }
 
@@ -714,19 +1032,20 @@
     for (const state of peers.values()) { try { state.conn.close(); } catch {} }
     peers.clear();
     try { peer.destroy(); } catch {}
-    peer = null; myPeerId = '';
-    renderIdentity(); updatePeers();
+    peer = null;
+    myPeerId = '';
+    renderIdentity();
+    updatePeers();
   }
 
   function startPeer() {
     destroyPeer();
     if (!window.Peer) {
-      setStatus('PeerJS failed to load');
-      log('PeerJS library did not load. Check your internet connection or CDN access.', 'error');
-      toast('PeerJS library unavailable.');
+      setStatus('PeerJS offline');
+      log('PeerJS library failed to load.', 'error');
       return;
     }
-    setStatus('Connecting to signaling…');
+    setStatus('Connecting…');
     peer = new Peer(undefined, {
       host: '0.peerjs.com',
       port: 443,
@@ -744,42 +1063,42 @@
       myPeerId = id;
       renderIdentity();
       setStatus('Ready to connect', true);
-      log('Your session is ready', 'success');
+      log('Session ready', 'success');
       const requested = new URLSearchParams(location.search).get('connect');
       if (requested && requested !== id) {
         $('peerIdInput').value = requested;
-        setTimeout(() => connectTo(requested), 500);
+        setTimeout(() => connectTo(requested), 400);
       }
     });
     peer.on('connection', conn => attachConnection(conn));
     peer.on('disconnected', () => {
-      setStatus('Signaling disconnected');
-      log('Signaling connection lost. Reconnecting…', 'error');
+      setStatus('Reconnecting…');
       if (peer && !peer.destroyed) peer.reconnect();
     });
     peer.on('close', () => setStatus('Session closed'));
     peer.on('error', err => {
-      log(`PeerJS: ${err.type || 'error'} — ${err.message || 'connection issue'}`, 'error');
-      if (err.type === 'unavailable-id') toast('Peer ID unavailable. Generate a new session.');
-      else if (err.type === 'peer-unavailable') toast('That peer is not available. Check the link and try again.');
-      else if (err.type === 'network' || err.type === 'server-error') setStatus('Signaling server issue');
+      log(`PeerJS: ${err.type || 'error'} — ${err.message || 'issue'}`, 'error');
+      if (err.type === 'peer-unavailable') toast('Peer not found or offline.');
     });
   }
 
   $('newSessionBtn').addEventListener('click', () => {
-    const url = new URL(location.href); url.searchParams.delete('connect'); history.replaceState({}, '', url);
+    const url = new URL(location.href);
+    url.searchParams.delete('connect');
+    history.replaceState({}, '', url);
     startPeer();
   });
   $('disconnectBtn').addEventListener('click', () => {
     for (const state of peers.values()) { try { state.conn.close(); } catch {} }
-    peers.clear(); updatePeers(); log('All peer connections closed');
+    peers.clear();
+    updatePeers();
+    log('All peer connections closed');
   });
-  $('clearLogBtn').addEventListener('click', () => $('activity').innerHTML = '<div>Waiting for activity…</div>');
+  $('clearLogBtn').addEventListener('click', () => {
+    $('activity').innerHTML = '<div>Waiting for activity…</div>';
+  });
 
   window.addEventListener('beforeunload', () => { try { peer?.destroy(); } catch {} });
-  if (!location.protocol.startsWith('http') && location.protocol !== 'https:') {
-    log('For camera/clipboard and reliable WebRTC behavior, host this page on HTTPS (GitHub Pages is HTTPS).');
-  }
   startPeer();
 })();
 </script>
