@@ -2,7 +2,7 @@
 <div align="center">
   <img src="https://altkriz.github.io/favicon.ico" alt="KrizDrop Logo" width="72" height="72" />
 
-  # ⚡ KrizDrop
+  # ⚡ KrizDrop ⚡
   **Instant, Encrypted Peer-to-Peer File Sharing Directly Between Browsers**
 
   [![Live Demo](https://img.shields.io/badge/Live_App-altkriz.github.io%2Fkrizdrop-4f46e5?style=for-the-badge&logo=googlechrome&logoColor=white)](https://altkriz.github.io/krizdrop/)
