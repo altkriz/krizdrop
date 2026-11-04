@@ -3,11 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#080e1b">
+  <meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="KrizDrop">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="description" content="KrizDrop — instant, encrypted peer-to-peer file sharing directly between browsers.">
   <title>KrizDrop — Direct P2P File Transfer</title>
+
+  <!-- Favicon & PWA Icons -->
+  <link rel="icon" href="https://altkriz.github.io/favicon.ico" sizes="any">
+  <link rel="shortcut icon" href="https://altkriz.github.io/favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" href="https://altkriz.github.io/favicon.ico">
+  <link rel="manifest" href="./manifest.webmanifest">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -37,6 +47,7 @@
     }
     body {
       min-height: 100dvh;
+      padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
     }
     .glass { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
@@ -61,13 +72,11 @@
 
   <div class="min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex flex-col pb-20 lg:pb-0">
 
-    <!-- App Header (100% full width, never clips or wraps awkwardly) -->
+    <!-- App Header -->
     <header class="w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-[#0b1220]/90 glass sticky top-0 z-30">
       <div class="max-w-7xl w-full mx-auto px-3.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
         <a href="#" class="flex items-center gap-2.5 min-w-0 shrink-0" aria-label="KrizDrop home">
-          <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white grid place-items-center shadow-md shadow-indigo-600/25 shrink-0">
-            <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M13 2 4 14h7l-1 8 10-13h-7l0-7Z" stroke-linejoin="round"/></svg>
-          </div>
+          <img src="https://altkriz.github.io/favicon.ico" alt="KrizDrop" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl object-contain bg-indigo-600/10 p-1 border border-indigo-500/20 shrink-0" onerror="this.style.display='none'">
           <div class="leading-tight">
             <div class="font-extrabold tracking-tight text-base sm:text-lg flex items-center gap-2">
               <span>KrizDrop</span>
@@ -78,10 +87,16 @@
         </a>
 
         <div class="flex items-center gap-2 min-w-0">
+          <!-- Install App Button (Appears automatically when installable) -->
+          <button id="installAppBtn" class="hidden items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 sm:px-3 py-1.5 text-xs font-bold shadow-sm shadow-indigo-600/20 transition-colors shrink-0">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            <span>Install</span>
+          </button>
+
           <!-- Connection Status Pill -->
           <span id="connectionPill" class="inline-flex items-center gap-1.5 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800/90 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700/70">
             <span id="connectionDot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
-            <span id="connectionText" class="truncate max-w-[110px] sm:max-w-none">Starting…</span>
+            <span id="connectionText" class="truncate max-w-[95px] sm:max-w-none">Starting…</span>
           </span>
 
           <button id="themeBtn" class="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white/70 dark:bg-slate-800/70 hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center transition-colors" title="Toggle theme" aria-label="Toggle theme">
@@ -98,7 +113,7 @@
       <section class="hidden lg:flex items-center justify-between gap-6 mb-7 pb-6 border-b border-slate-200/70 dark:border-slate-800/70">
         <div>
           <div class="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-2.5">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> End-to-End Encrypted · Zero Cloud Storage · Unlimited Speed
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> End-to-End Encrypted · Zero Cloud Storage · Wake-Lock Protected
           </div>
           <h1 class="text-3xl xl:text-4xl font-extrabold tracking-tight">
             Send files directly between devices. <span class="text-indigo-600 dark:text-indigo-400">No servers in between.</span>
@@ -112,7 +127,7 @@
         </div>
       </section>
 
-      <!-- Responsive Grid: every child has min-w-0 to prevent horizontal overflow on mobile -->
+      <!-- Responsive Grid -->
       <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-start w-full">
 
         <!-- LEFT COLUMN (Pair & QR) -->
@@ -131,7 +146,6 @@
             </div>
 
             <div class="p-4 sm:p-5 space-y-4">
-              <!-- Compact QR + Peer ID -->
               <div class="flex flex-col sm:flex-row items-center gap-4">
                 <div id="qr" class="bg-white p-3 rounded-2xl w-[144px] h-[144px] shrink-0 grid place-items-center border border-slate-200 shadow-sm">
                   <span class="text-xs text-slate-400">Preparing QR…</span>
@@ -156,7 +170,7 @@
                 </div>
               </div>
 
-              <!-- Instant Pairing URL (Strictly contained so it NEVER stretches mobile width) -->
+              <!-- Instant Pairing URL -->
               <div class="w-full min-w-0 rounded-xl bg-slate-50 dark:bg-slate-900/60 p-3 border border-slate-200/60 dark:border-slate-800/80">
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">Instant Pairing URL</span>
@@ -186,7 +200,7 @@
             </form>
           </div>
 
-          <!-- Mobile Quick Tip Card (Fills bottom space nicely on tall mobile screens) -->
+          <!-- Mobile Tip -->
           <div class="lg:hidden rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-500/20 p-3.5 flex items-center gap-3">
             <div class="w-8 h-8 rounded-xl bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 grid place-items-center shrink-0">
               <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
@@ -231,7 +245,6 @@
               <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Encrypted Stream</span>
             </div>
 
-            <!-- Interactive Drop Zone -->
             <div id="dropZone" class="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-900/40 p-6 sm:p-8 text-center transition-all cursor-pointer hover:border-indigo-500">
               <input id="fileInput" type="file" multiple class="hidden">
               <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-indigo-600/10 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-400 grid place-items-center mx-auto mb-2.5">
@@ -241,13 +254,9 @@
               <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Any file type · Multiple files supported</p>
             </div>
 
-            <!-- Selected Files Queue -->
             <div id="selectedFiles" class="hidden mt-3.5 space-y-2 max-h-44 overflow-y-auto scrollbar-thin"></div>
-
-            <!-- Single Live Progress Card -->
             <div id="transferProgressList" class="hidden mt-3.5 space-y-2.5"></div>
 
-            <!-- Target Peer & Send Action -->
             <div class="mt-3.5 flex flex-col sm:flex-row gap-2">
               <select id="targetPeer" class="flex-1 min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-3 text-xs sm:text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500" disabled>
                 <option value="">Connect a device first</option>
@@ -276,7 +285,7 @@
       </section>
     </main>
 
-    <!-- MOBILE NATIVE BOTTOM NAVIGATION BAR (<1024px) -->
+    <!-- MOBILE BOTTOM NAVIGATION BAR (<1024px) -->
     <nav class="lg:hidden fixed bottom-0 inset-x-0 w-full z-40 border-t border-slate-200/90 dark:border-slate-800/90 bg-white/95 dark:bg-[#0b1220]/95 glass">
       <div class="grid grid-cols-3 h-16 max-w-md mx-auto px-2">
         <button data-tab="pair" class="mobile-tab-btn flex flex-col items-center justify-center gap-1 text-indigo-600 dark:text-indigo-400 font-bold">
@@ -353,6 +362,63 @@
   let selectedFiles = [];
   let toastTimer = null;
   let currentMobileTab = 'pair';
+  let deferredInstallPrompt = null;
+  let wakeLockSentinel = null;
+
+  // Register Service Worker for PWA installation
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+
+  // Handle Native PWA Install Prompt (Android / Desktop Chrome / Edge)
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    $('installAppBtn').classList.remove('hidden');
+    $('installAppBtn').classList.add('inline-flex');
+  });
+
+  // Also show Install button on iOS Safari if not already running in standalone mode
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (isIos && !isStandalone) {
+    $('installAppBtn').classList.remove('hidden');
+    $('installAppBtn').classList.add('inline-flex');
+  }
+
+  $('installAppBtn').addEventListener('click', async () => {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      if (outcome === 'accepted') {
+        $('installAppBtn').classList.add('hidden');
+        toast('Installing KrizDrop…');
+      }
+      deferredInstallPrompt = null;
+    } else if (isIos) {
+      toast('On iPhone/iPad: Tap Share icon in Safari → "Add to Home Screen"');
+    }
+  });
+
+  window.addEventListener('appinstalled', () => {
+    $('installAppBtn').classList.add('hidden');
+    toast('KrizDrop installed on your device!');
+  });
+
+  // Screen Wake Lock (Prevents phone screen from sleeping during active file transfers)
+  async function requestWakeLock() {
+    if ('wakeLock' in navigator && !wakeLockSentinel) {
+      try { wakeLockSentinel = await navigator.wakeLock.request('screen'); } catch {}
+    }
+  }
+  function releaseWakeLock() {
+    if (wakeLockSentinel) {
+      try { wakeLockSentinel.release(); } catch {}
+      wakeLockSentinel = null;
+    }
+  }
 
   const fmtBytes = n => {
     if (!Number.isFinite(n) || n < 0) return '—';
@@ -371,7 +437,7 @@
     $('toast').textContent = message;
     $('toast').classList.remove('hidden');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => $('toast').classList.add('hidden'), 3200);
+    toastTimer = setTimeout(() => $('toast').classList.add('hidden'), 3400);
   }
 
   function log(message, type = 'info') {
@@ -599,11 +665,13 @@
       case 'file-end': finishIncoming(id, data); break;
       case 'file-cancel':
         state.incoming = null;
+        releaseWakeLock();
         removeTransferProgress(id);
         log(`Transfer cancelled by ${id.slice(0, 18)}`);
         break;
       case 'file-error':
         state.incoming = null;
+        releaseWakeLock();
         removeTransferProgress(id);
         toast(`Transfer error: ${data.message || 'unknown'}`);
         break;
@@ -656,6 +724,7 @@
       return;
     }
 
+    await requestWakeLock();
     state.incoming = {
       transferId: offer.transferId,
       name,
@@ -698,6 +767,7 @@
     if (rx.received > rx.size) {
       state.conn.send({ type: 'file-error', message: 'Received more data than expected' });
       state.incoming = null;
+      releaseWakeLock();
       removeTransferProgress(id);
       return;
     }
@@ -737,6 +807,7 @@
         toast(`Incomplete transfer: ${state.incoming.name}`);
         log(`Incomplete transfer for ${state.incoming.name}`, 'error');
         state.incoming = null;
+        releaseWakeLock();
         removeTransferProgress(id);
       }
     }, 3000);
@@ -747,6 +818,7 @@
     const rx = state?.incoming;
     if (!rx) return;
     clearTimeout(rx.finishCheckTimer);
+    releaseWakeLock();
 
     const elapsedSec = Math.max((performance.now() - rx.started) / 1000, 0.001);
     updateTransferProgress(id, 'Completed', rx.name, 100, rx.size, rx.size, rx.size / elapsedSec);
@@ -782,6 +854,7 @@
       const name = state.pending.file?.name || message.name || 'file';
       state.pending = null;
       state.busy = false;
+      releaseWakeLock();
       log(`Sent ${name} successfully`, 'success');
       toast(`Delivered ${name}`);
       setTimeout(() => removeTransferProgress(id), 3500);
@@ -790,6 +863,7 @@
     if (message.accepted === false) {
       state.pending = null;
       state.busy = false;
+      releaseWakeLock();
       removeTransferProgress(id);
       toast(message.reason || 'Transfer declined');
       log(`File offer declined by ${id.slice(0, 18)}`);
@@ -823,6 +897,7 @@
 
   async function sendFileChunks(id, state, file, transferId) {
     try {
+      await requestWakeLock();
       const totalSize = file.size;
       const startTime = performance.now();
       let offset = 0;
@@ -875,6 +950,7 @@
       try { state.conn.send({ type: 'file-cancel', transferId }); } catch {}
       state.pending = null;
       state.busy = false;
+      releaseWakeLock();
       removeTransferProgress(id);
       toast(`Transfer failed: ${error.message}`);
       log(`Failed to send ${file.name}: ${error.message}`, 'error');
