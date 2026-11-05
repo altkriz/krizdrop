@@ -12,11 +12,13 @@
   <meta name="description" content="KrizDrop — instant, encrypted peer-to-peer file sharing directly between browsers.">
   <title>KrizDrop — Direct P2P File Transfer</title>
 
-  <!-- Favicon & PWA Icons -->
+  <!-- Favicon & Apple Touch Icon -->
   <link rel="icon" href="https://altkriz.github.io/favicon.ico" sizes="any">
   <link rel="shortcut icon" href="https://altkriz.github.io/favicon.ico" type="image/x-icon">
   <link rel="apple-touch-icon" href="https://altkriz.github.io/favicon.ico">
-  <link rel="manifest" href="./manifest.webmanifest">
+
+  <!-- Embedded Single-File PWA Web App Manifest -->
+  <link id="pwaManifest" rel="manifest" href='data:application/manifest+json,{"name":"KrizDrop — Direct P2P File Transfer","short_name":"KrizDrop","description":"Instant, encrypted peer-to-peer file sharing directly between browsers.","start_url":"https://altkriz.github.io/krizdrop/","scope":"https://altkriz.github.io/krizdrop/","display":"standalone","orientation":"portrait-primary","background_color":"#070b14","theme_color":"#0b1220","icons":[{"src":"https://altkriz.github.io/favicon.ico","sizes":"16x16 32x32 48x48 64x64 128x128 192x192 256x256 512x512","type":"image/x-icon","purpose":"any maskable"}]}'>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -37,6 +39,8 @@
   </script>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- jsQR for universal in-app camera QR scanning across Android & iOS Safari -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
     :root { color-scheme: light; }
     html.dark { color-scheme: dark; }
@@ -63,6 +67,13 @@
     @media (max-width: 1023px) {
       .mobile-tab-hidden { display: none !important; }
     }
+    @keyframes scanLaser {
+      0%, 100% { top: 10%; opacity: 0.9; }
+      50% { top: 88%; opacity: 1; }
+    }
+    .scan-laser {
+      animation: scanLaser 2.2s ease-in-out infinite;
+    }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-900 dark:bg-[#070b14] dark:text-slate-100 transition-colors selection:bg-indigo-500 selection:text-white">
@@ -87,8 +98,8 @@
         </a>
 
         <div class="flex items-center gap-2 min-w-0">
-          <!-- Install App Button (Appears automatically when installable) -->
-          <button id="installAppBtn" class="hidden items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 sm:px-3 py-1.5 text-xs font-bold shadow-sm shadow-indigo-600/20 transition-colors shrink-0">
+          <!-- Install Web App Button -->
+          <button id="installAppBtn" type="button" class="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 sm:px-3 py-1.5 text-xs font-bold shadow-sm shadow-indigo-600/20 transition-colors shrink-0">
             <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
             <span>Install</span>
           </button>
@@ -96,10 +107,10 @@
           <!-- Connection Status Pill -->
           <span id="connectionPill" class="inline-flex items-center gap-1.5 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800/90 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700/70">
             <span id="connectionDot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
-            <span id="connectionText" class="truncate max-w-[95px] sm:max-w-none">Starting…</span>
+            <span id="connectionText" class="truncate max-w-[90px] sm:max-w-none">Starting…</span>
           </span>
 
-          <button id="themeBtn" class="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white/70 dark:bg-slate-800/70 hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center transition-colors" title="Toggle theme" aria-label="Toggle theme">
+          <button id="themeBtn" type="button" class="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white/70 dark:bg-slate-800/70 hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center transition-colors" title="Toggle theme" aria-label="Toggle theme">
             <svg id="themeIcon" viewBox="0 0 24 24" class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
           </button>
         </div>
@@ -113,7 +124,7 @@
       <section class="hidden lg:flex items-center justify-between gap-6 mb-7 pb-6 border-b border-slate-200/70 dark:border-slate-800/70">
         <div>
           <div class="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-2.5">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> End-to-End Encrypted · Zero Cloud Storage · Wake-Lock Protected
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> End-to-End Encrypted · Zero Cloud Storage · Built-In QR Scanner
           </div>
           <h1 class="text-3xl xl:text-4xl font-extrabold tracking-tight">
             Send files directly between devices. <span class="text-indigo-600 dark:text-indigo-400">No servers in between.</span>
@@ -138,9 +149,9 @@
             <div class="px-4 py-3.5 sm:p-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
               <div class="min-w-0">
                 <div class="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Step 1 · Your Device</div>
-                <h2 class="text-base sm:text-lg font-bold truncate">Share or Scan to Pair</h2>
+                <h2 class="text-base sm:text-lg font-bold truncate">Your QR & Peer ID</h2>
               </div>
-              <button id="newSessionBtn" class="shrink-0 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <button id="newSessionBtn" type="button" class="shrink-0 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                 New ID
               </button>
             </div>
@@ -160,10 +171,10 @@
                   </div>
 
                   <div class="grid grid-cols-2 gap-2">
-                    <button id="copyIdBtn" class="rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-3 py-2.5 text-xs font-semibold transition-colors" disabled>
+                    <button id="copyIdBtn" type="button" class="rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 px-3 py-2.5 text-xs font-semibold transition-colors" disabled>
                       Copy ID
                     </button>
-                    <button id="shareLinkBtn" class="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2.5 text-xs font-semibold shadow-sm shadow-indigo-600/20 transition-colors" disabled>
+                    <button id="shareLinkBtn" type="button" class="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2.5 text-xs font-semibold shadow-sm shadow-indigo-600/20 transition-colors" disabled>
                       Share Link
                     </button>
                   </div>
@@ -174,40 +185,46 @@
               <div class="w-full min-w-0 rounded-xl bg-slate-50 dark:bg-slate-900/60 p-3 border border-slate-200/60 dark:border-slate-800/80">
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">Instant Pairing URL</span>
-                  <button id="copyLinkBtn" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0" disabled>Copy URL</button>
+                  <button id="copyLinkBtn" type="button" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0" disabled>Copy URL</button>
                 </div>
                 <div id="shareLink" class="mt-1 w-full font-mono text-[11px] text-slate-500 dark:text-slate-400 truncate">Waiting for signaling server…</div>
               </div>
             </div>
           </div>
 
-          <!-- Connect to Peer Card -->
-          <div class="w-full rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-4 sm:p-5">
-            <div class="flex items-center justify-between gap-3 mb-3">
+          <!-- Connect to Peer Card (With Built-in Camera QR Scanner!) -->
+          <div class="w-full rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-4 sm:p-5 space-y-3.5">
+            <div class="flex items-center justify-between gap-3">
               <div class="min-w-0">
-                <div class="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Join Another Device</div>
-                <h2 class="text-base sm:text-lg font-bold">Enter Peer ID</h2>
+                <div class="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Step 2 · Join Another Device</div>
+                <h2 class="text-base sm:text-lg font-bold">Scan QR or Enter ID</h2>
               </div>
               <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 grid place-items-center shrink-0">
                 <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 12h8m-4-4 4 4-4 4"/><circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
               </div>
             </div>
+
+            <!-- Primary Action for Phone-to-Phone: Live In-App Camera QR Scanner -->
+            <button id="scanQrBtn" type="button" class="w-full flex items-center justify-center gap-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600/15 dark:hover:bg-indigo-600/25 text-white dark:text-indigo-300 border border-transparent dark:border-indigo-500/30 px-4 py-3 text-xs sm:text-sm font-bold shadow-sm transition-all">
+              <svg viewBox="0 0 24 24" class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 7V5a1 1 0 0 1 1-1h2M20 7V5a1 1 0 0 0-1-1h-2M4 17v2a1 1 0 0 0 1 1h2M20 17v2a1 1 0 0 1-1 1h-2"/>
+                <rect x="7" y="7" width="10" height="10" rx="1"/>
+              </svg>
+              <span>Scan Other Device's QR Code</span>
+            </button>
+
+            <div class="relative flex py-0.5 items-center">
+              <div class="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+              <span class="flex-shrink mx-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">or paste peer id</span>
+              <div class="flex-grow border-t border-slate-200 dark:border-slate-800"></div>
+            </div>
+
             <form id="connectForm" class="flex flex-col sm:flex-row gap-2">
               <input id="peerIdInput" type="text" autocomplete="off" spellcheck="false" placeholder="Paste other device's Peer ID…" class="min-w-0 w-full flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-3 text-xs sm:text-sm font-mono outline-none focus:ring-2 focus:ring-indigo-500">
-              <button id="connectBtn" class="w-full sm:w-auto shrink-0 rounded-xl bg-indigo-600 text-white px-5 py-3 text-sm font-semibold hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 transition-colors">
+              <button id="connectBtn" type="submit" class="w-full sm:w-auto shrink-0 rounded-xl bg-indigo-600 text-white px-5 py-3 text-sm font-semibold hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 transition-colors">
                 Connect
               </button>
             </form>
-          </div>
-
-          <!-- Mobile Tip -->
-          <div class="lg:hidden rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-500/20 p-3.5 flex items-center gap-3">
-            <div class="w-8 h-8 rounded-xl bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 grid place-items-center shrink-0">
-              <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
-            </div>
-            <p class="text-xs text-slate-600 dark:text-slate-300 leading-snug">
-              Scan this QR code with another phone's camera or tap <span class="font-semibold">Share Link</span> to pair automatically.
-            </p>
           </div>
         </div>
 
@@ -223,7 +240,7 @@
               </div>
               <div class="flex items-center gap-2 shrink-0">
                 <span id="peerCount" class="rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300 px-2.5 py-1 text-xs font-bold">0 connected</span>
-                <button id="disconnectBtn" class="rounded-xl border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 px-2.5 py-1 text-xs font-semibold hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors" disabled>
+                <button id="disconnectBtn" type="button" class="rounded-xl border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 px-2.5 py-1 text-xs font-semibold hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors" disabled>
                   Disconnect
                 </button>
               </div>
@@ -261,7 +278,7 @@
               <select id="targetPeer" class="flex-1 min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-3 text-xs sm:text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500" disabled>
                 <option value="">Connect a device first</option>
               </select>
-              <button id="sendBtn" class="w-full sm:w-auto rounded-xl bg-indigo-600 text-white px-6 py-3 text-sm font-bold hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all" disabled>
+              <button id="sendBtn" type="button" class="w-full sm:w-auto rounded-xl bg-indigo-600 text-white px-6 py-3 text-sm font-bold hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all" disabled>
                 Send Files Now
               </button>
             </div>
@@ -274,7 +291,7 @@
                 <div class="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Diagnostics</div>
                 <h2 class="text-base font-bold">Session Activity</h2>
               </div>
-              <button id="clearLogBtn" class="text-xs font-semibold text-slate-500 hover:text-indigo-600">Clear Log</button>
+              <button id="clearLogBtn" type="button" class="text-xs font-semibold text-slate-500 hover:text-indigo-600">Clear Log</button>
             </div>
             <div id="activity" class="space-y-2 max-h-60 overflow-y-auto scrollbar-thin text-xs text-slate-500 dark:text-slate-400 font-mono">
               <div>Waiting for activity…</div>
@@ -288,12 +305,12 @@
     <!-- MOBILE BOTTOM NAVIGATION BAR (<1024px) -->
     <nav class="lg:hidden fixed bottom-0 inset-x-0 w-full z-40 border-t border-slate-200/90 dark:border-slate-800/90 bg-white/95 dark:bg-[#0b1220]/95 glass">
       <div class="grid grid-cols-3 h-16 max-w-md mx-auto px-2">
-        <button data-tab="pair" class="mobile-tab-btn flex flex-col items-center justify-center gap-1 text-indigo-600 dark:text-indigo-400 font-bold">
+        <button data-tab="pair" type="button" class="mobile-tab-btn flex flex-col items-center justify-center gap-1 text-indigo-600 dark:text-indigo-400 font-bold">
           <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3m0 4h4v-4m-7 4h3"/></svg>
           <span class="text-[11px]">Pair & QR</span>
         </button>
 
-        <button data-tab="transfer" class="mobile-tab-btn relative flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 font-medium">
+        <button data-tab="transfer" type="button" class="mobile-tab-btn relative flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 font-medium">
           <div class="relative">
             <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4m-5 5 5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
             <span id="mobilePeerBadge" class="hidden absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold grid place-items-center">1</span>
@@ -301,12 +318,75 @@
           <span class="text-[11px]">Transfer</span>
         </button>
 
-        <button data-tab="activity" class="mobile-tab-btn flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 font-medium">
+        <button data-tab="activity" type="button" class="mobile-tab-btn flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 font-medium">
           <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
           <span class="text-[11px]">Activity</span>
         </button>
       </div>
     </nav>
+  </div>
+
+  <!-- LIVE IN-APP CAMERA QR SCANNER MODAL -->
+  <div id="qrScannerModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
+    <div class="w-full max-w-sm rounded-3xl bg-white dark:bg-[#101929] border border-slate-200 dark:border-slate-800 overflow-hidden shadow-2xl">
+      <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+        <div>
+          <div class="text-[10px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Camera Scanner</div>
+          <h3 class="text-base font-extrabold">Scan KrizDrop QR Code</h3>
+        </div>
+        <button id="closeScannerBtn" type="button" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 grid place-items-center text-slate-600 dark:text-slate-300" aria-label="Close scanner">
+          <svg viewBox="0 0 24 24" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div class="relative aspect-square w-full rounded-2xl overflow-hidden bg-slate-950 border border-slate-800">
+          <video id="qrVideo" class="w-full h-full object-cover" playsinline muted></video>
+          <canvas id="qrCanvas" class="hidden"></canvas>
+
+          <div class="pointer-events-none absolute inset-8 border-2 border-white/20 rounded-2xl">
+            <div class="absolute -top-0.5 -left-0.5 w-7 h-7 border-t-4 border-l-4 border-indigo-500 rounded-tl-xl"></div>
+            <div class="absolute -top-0.5 -right-0.5 w-7 h-7 border-t-4 border-r-4 border-indigo-500 rounded-tr-xl"></div>
+            <div class="absolute -bottom-0.5 -left-0.5 w-7 h-7 border-b-4 border-l-4 border-indigo-500 rounded-bl-xl"></div>
+            <div class="absolute -bottom-0.5 -right-0.5 w-7 h-7 border-b-4 border-r-4 border-indigo-500 rounded-br-xl"></div>
+            <div class="scan-laser absolute inset-x-2 h-0.5 bg-gradient-to-r from-transparent via-indigo-400 to-transparent shadow-[0_0_8px_#6366f1]"></div>
+          </div>
+        </div>
+
+        <p id="scannerStatusText" class="text-xs text-center text-slate-500 dark:text-slate-400">
+          Point your camera at the QR code shown on the other phone or computer.
+        </p>
+
+        <div class="flex gap-2">
+          <button id="switchCameraBtn" type="button" class="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 py-2.5 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            Flip Camera
+          </button>
+          <button id="cancelScannerBtn" type="button" class="flex-1 rounded-xl bg-slate-100 dark:bg-slate-800 py-2.5 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INSTALL APP GUIDE MODAL (For iOS Safari & Browsers without direct prompt) -->
+  <div id="installGuideModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-950/60 backdrop-blur-sm p-3 sm:p-4">
+    <div class="w-full max-w-sm rounded-3xl bg-white dark:bg-[#111a2e] border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4">
+      <div class="flex items-center gap-3">
+        <img src="https://altkriz.github.io/favicon.ico" alt="KrizDrop" class="w-11 h-11 rounded-2xl bg-indigo-600/10 p-1.5 border border-indigo-500/20">
+        <div>
+          <div class="text-[10px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Install Web App</div>
+          <h3 class="text-base font-extrabold">Add KrizDrop to Home Screen</h3>
+        </div>
+      </div>
+      <div class="text-xs text-slate-600 dark:text-slate-300 space-y-2 leading-relaxed bg-slate-50 dark:bg-slate-900/80 p-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+        <p><strong>On Android (Chrome / Edge / Brave):</strong><br>Tap the browser menu <strong>(⋮)</strong> in the top-right corner and select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</p>
+        <p><strong>On iPhone / iPad (Safari):</strong><br>Tap the <strong>Share</strong> button at the bottom of Safari and select <strong>"Add to Home Screen"</strong>.</p>
+      </div>
+      <button id="closeInstallGuideBtn" type="button" class="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white py-3 text-xs font-bold">
+        Got It
+      </button>
+    </div>
   </div>
 
   <!-- INCOMING FILE OFFER MODAL -->
@@ -334,10 +414,10 @@
       </div>
 
       <div class="mt-5 grid grid-cols-2 gap-3">
-        <button id="declineOfferBtn" class="rounded-xl border border-slate-200 dark:border-slate-700 py-3 text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+        <button id="declineOfferBtn" type="button" class="rounded-xl border border-slate-200 dark:border-slate-700 py-3 text-sm font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
           Decline
         </button>
-        <button id="acceptOfferBtn" class="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white py-3 text-sm font-bold shadow-lg shadow-indigo-600/25 transition-colors">
+        <button id="acceptOfferBtn" type="button" class="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white py-3 text-sm font-bold shadow-lg shadow-indigo-600/25 transition-colors">
           Accept
         </button>
       </div>
@@ -365,28 +445,22 @@
   let deferredInstallPrompt = null;
   let wakeLockSentinel = null;
 
-  // Register Service Worker for PWA installation
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
-    });
+  // QR Scanner State
+  let qrStream = null;
+  let qrScanRaf = null;
+  let qrFacingMode = 'environment';
+
+  // Hide Install Button if already running as installed standalone app
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (isStandalone) {
+    $('installAppBtn').classList.add('hidden');
   }
 
-  // Handle Native PWA Install Prompt (Android / Desktop Chrome / Edge)
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     deferredInstallPrompt = e;
     $('installAppBtn').classList.remove('hidden');
-    $('installAppBtn').classList.add('inline-flex');
   });
-
-  // Also show Install button on iOS Safari if not already running in standalone mode
-  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-  if (isIos && !isStandalone) {
-    $('installAppBtn').classList.remove('hidden');
-    $('installAppBtn').classList.add('inline-flex');
-  }
 
   $('installAppBtn').addEventListener('click', async () => {
     if (deferredInstallPrompt) {
@@ -397,9 +471,15 @@
         toast('Installing KrizDrop…');
       }
       deferredInstallPrompt = null;
-    } else if (isIos) {
-      toast('On iPhone/iPad: Tap Share icon in Safari → "Add to Home Screen"');
+    } else {
+      $('installGuideModal').classList.remove('hidden');
+      $('installGuideModal').classList.add('flex');
     }
+  });
+
+  $('closeInstallGuideBtn').addEventListener('click', () => {
+    $('installGuideModal').classList.add('hidden');
+    $('installGuideModal').classList.remove('flex');
   });
 
   window.addEventListener('appinstalled', () => {
@@ -407,7 +487,7 @@
     toast('KrizDrop installed on your device!');
   });
 
-  // Screen Wake Lock (Prevents phone screen from sleeping during active file transfers)
+  // Screen Wake Lock
   async function requestWakeLock() {
     if ('wakeLock' in navigator && !wakeLockSentinel) {
       try { wakeLockSentinel = await navigator.wakeLock.request('screen'); } catch {}
@@ -515,6 +595,120 @@
     return url.toString();
   }
 
+  function extractPeerId(raw) {
+    const trimmed = String(raw || '').trim();
+    if (!trimmed) return '';
+    try {
+      const parsed = new URL(trimmed);
+      const fromParam = parsed.searchParams.get('connect');
+      if (fromParam) return fromParam.trim();
+    } catch {}
+    return trimmed;
+  }
+
+  // LIVE IN-APP CAMERA QR SCANNER
+  async function startQrScanner() {
+    stopQrScanner(false);
+    $('qrScannerModal').classList.remove('hidden');
+    $('qrScannerModal').classList.add('flex');
+    $('scannerStatusText').textContent = 'Starting camera…';
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      $('scannerStatusText').textContent = 'Camera access is not supported in this browser.';
+      toast('Camera API unavailable.');
+      return;
+    }
+
+    try {
+      qrStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: qrFacingMode }, width: { ideal: 720 }, height: { ideal: 720 } },
+        audio: false
+      });
+      const video = $('qrVideo');
+      video.srcObject = qrStream;
+      await video.play();
+      $('scannerStatusText').textContent = 'Point your camera at the other device’s QR code…';
+
+      const canvas = $('qrCanvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const barcodeDetector = ('BarcodeDetector' in window)
+        ? new BarcodeDetector({ formats: ['qr_code'] })
+        : null;
+
+      const scanFrame = async () => {
+        if (!qrStream) return;
+        if (video.readyState >= video.HAVE_ENOUGH_DATA) {
+          if (barcodeDetector) {
+            try {
+              const codes = await barcodeDetector.detect(video);
+              if (codes && codes.length > 0 && codes[0].rawValue) {
+                onQrCodeDetected(codes[0].rawValue);
+                return;
+              }
+            } catch {}
+          }
+          if (window.jsQR) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = window.jsQR(imgData.data, imgData.width, imgData.height, {
+              inversionAttempts: 'dontInvert'
+            });
+            if (code && code.data) {
+              onQrCodeDetected(code.data);
+              return;
+            }
+          }
+        }
+        qrScanRaf = requestAnimationFrame(scanFrame);
+      };
+
+      qrScanRaf = requestAnimationFrame(scanFrame);
+    } catch (err) {
+      $('scannerStatusText').textContent = 'Camera permission denied or unavailable.';
+      toast('Please allow camera access to scan QR codes.');
+      log(`Camera error: ${err.message || 'permission denied'}`, 'error');
+    }
+  }
+
+  function stopQrScanner(hideModal = true) {
+    if (qrScanRaf) {
+      cancelAnimationFrame(qrScanRaf);
+      qrScanRaf = null;
+    }
+    if (qrStream) {
+      qrStream.getTracks().forEach(track => { try { track.stop(); } catch {} });
+      qrStream = null;
+    }
+    const video = $('qrVideo');
+    if (video) video.srcObject = null;
+    if (hideModal) {
+      $('qrScannerModal').classList.add('hidden');
+      $('qrScannerModal').classList.remove('flex');
+    }
+  }
+
+  function onQrCodeDetected(rawValue) {
+    const targetId = extractPeerId(rawValue);
+    if (!targetId) return;
+    if (navigator.vibrate) {
+      try { navigator.vibrate(60); } catch {}
+    }
+    stopQrScanner(true);
+    $('peerIdInput').value = targetId;
+    toast('QR code scanned! Connecting…');
+    connectTo(targetId);
+  }
+
+  $('scanQrBtn').addEventListener('click', startQrScanner);
+  $('closeScannerBtn').addEventListener('click', () => stopQrScanner(true));
+  $('cancelScannerBtn').addEventListener('click', () => stopQrScanner(true));
+  $('switchCameraBtn').addEventListener('click', () => {
+    qrFacingMode = qrFacingMode === 'environment' ? 'user' : 'environment';
+    startQrScanner();
+  });
+
   function renderIdentity() {
     $('myId').textContent = myPeerId || 'Connecting…';
     $('shareLink').textContent = myPeerId ? makeShareUrl(myPeerId) : 'Unavailable';
@@ -605,7 +799,7 @@
   }
 
   function connectTo(id) {
-    id = String(id || '').trim();
+    id = extractPeerId(id);
     if (!peer || !peer.open) { toast('Signaling is still starting. Wait a moment.'); return; }
     if (!id || id === myPeerId) { toast('Enter another device’s Peer ID.'); return; }
     if (peers.has(id) && peers.get(id).conn.open) { toast('Already connected to this device.'); return; }
@@ -1181,7 +1375,10 @@
     $('activity').innerHTML = '<div>Waiting for activity…</div>';
   });
 
-  window.addEventListener('beforeunload', () => { try { peer?.destroy(); } catch {} });
+  window.addEventListener('beforeunload', () => {
+    stopQrScanner(false);
+    try { peer?.destroy(); } catch {}
+  });
   startPeer();
 })();
 </script>
