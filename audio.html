@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Morse Code Audio File Transfer</title>
+  <style>
+    :root {
+      --bg: #0f172a; --card: #1e293b; --accent: #38bdf8;
+      --text: #f8fafc; --muted: #94a3b8; --border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 1.5rem; display: flex; justify-content: center; }
+    .container { width: 100%; max-width: 650px; }
+    h1 { text-align: center; margin-bottom: 0.5rem; font-size: 1.6rem; color: var(--accent); }
+    p.sub { text-align: center; color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    
+    .tabs { display: flex; gap: 8px; margin-bottom: 1rem; }
+    .tab-btn {
+      flex: 1; padding: 10px; background: var(--card); border: 1px solid var(--border);
+      color: var(--text); cursor: pointer; border-radius: 8px; font-weight: bold;
+    }
+    .tab-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+    
+    .panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; display: none; }
+    .panel.active { display: block; }
+
+    .control-group { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.4rem; }
+    input[type="file"], input[type="range"] { width: 100%; }
+    
+    button.action-btn {
+      width: 100%; padding: 12px; background: var(--accent); color: #000;
+      border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem;
+      transition: opacity 0.2s;
+    }
+    button.action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.stop-btn { background: #ef4444; color: white; margin-top: 8px; }
+
+    .terminal {
+      background: #090d16; border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px; font-family: monospace; font-size: 0.85rem; min-height: 80px;
+      max-height: 140px; overflow-y: auto; color: #4ade80; margin-top: 1rem; word-break: break-all;
+    }
+    .meter-container { margin: 1rem 0; }
+    canvas { width: 100%; height: 35px; background: #090d16; border-radius: 6px; }
+
+    .status-badge {
+      display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem;
+      font-weight: bold; margin-bottom: 0.8rem; background: #334155; color: #fff;
+    }
+    .status-badge.transmitting { background: #eab308; color: #000; }
+    .status-badge.receiving { background: #22c55e; color: #000; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Audio Morse File Transfer</h1>
+  <p class="sub">Transmit small files over acoustic sound waves</p>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('tx')">Speaker (Sender)</button>
+    <button class="tab-btn" onclick="switchTab('rx')">Listener (Receiver)</button>
+  </div>
+
+  <!-- TRANSMITTER PANEL -->
+  <div id="tx-panel" class="panel active">
+    <div class="status-badge" id="tx-status">IDLE</div>
+
+    <div class="control-group">
+      <label>Select Small File (Text, JSON, Keys &lt; 500 bytes recommended):</label>
+      <input type="file" id="file-input" onchange="loadFile()">
+    </div>
+
+    <div class="control-group">
+      <label>Speed (Time Unit: <span id="unit-val">70</span>ms):</label>
+      <input type="range" id="unit-slider" min="40" max="150" value="70" oninput="unitTime = +this.value; document.getElementById('unit-val').innerText = this.value;">
+    </div>
+
+    <button class="action-btn" id="tx-start-btn" onclick="startTransmission()" disabled>Play Morse Audio</button>
+    <button class="action-btn stop-btn" id="tx-stop-btn" onclick="stopTransmission()" style="display:none;">Stop Transmission</button>
+
+    <div class="terminal" id="tx-log">Select a file to begin...</div>
+  </div>
+
+  <!-- RECEIVER PANEL -->
+  <div id="rx-panel" class="panel">
+    <div class="status-badge" id="rx-status">LISTENER STOPPED</div>
+
+    <button class="action-btn" id="rx-toggle-btn" onclick="toggleListening()">Start Microphone Listener</button>
+
+    <div class="meter-container">
+      <label>Frequency Energy (850Hz) & Detection Threshold:</label>
+      <canvas id="meter"></canvas>
+    </div>
+
+    <div class="control-group">
+      <label>Sensitivity Threshold: <span id="thresh-val">45</span></label>
+      <input type="range" id="thresh-slider" min="10" max="150" value="45" oninput="threshold = +this.value; document.getElementById('thresh-val').innerText = this.value;">
+    </div>
+
+    <div class="terminal" id="rx-log">Awaiting audio signal...</div>
+    <div id="rx-download" style="margin-top: 1rem;"></div>
+  </div>
+</div>
+
+<script>
+// --- MORSE DICTIONARY FOR HEXADECIMAL + SPECIAL TOKENS ---
+const MORSE_MAP = {
+  '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-',
+  '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.',
+  'A': '.-',    'B': '-...',  'C': '-.-.',  'D': '-..',   'E': '.',
+  'F': '..-.',  ':': '---...',';': '-.-.-.', '=': '-...-', '+': '.-.-.'
+};
+const REVERSE_MAP = Object.fromEntries(Object.entries(MORSE_MAP).map(([k, v]) => [v, k]));
+
+const FREQ = 850; // Audio Frequency in Hz
+let unitTime = 70; // 1 unit = dot duration (ms)
+let threshold = 45; // Energy detection threshold
+
+// --- TAB SWITCHER ---
+function switchTab(mode) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => b.classList.toggle('active', (mode==='tx' && i===0) || (mode==='rx' && i===1)));
+  document.getElementById('tx-panel').classList.toggle('active', mode === 'tx');
+  document.getElementById('rx-panel').classList.toggle('active', mode === 'rx');
+}
+
+// ==========================================
+// 1. TRANSMITTER (SPEAKER)
+// ==========================================
+let txAudioCtx = null;
+let txPayload = "";
+let isTransmitting = false;
+
+function loadFile() {
+  const file = document.getElementById('file-input').files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const uint8 = new Uint8Array(reader.result);
+    // Convert bytes to hex string
+    let hex = "";
+    for (let b of uint8) hex += b.toString(16).padStart(2, '0').toUpperCase();
+
+    // Payload format: NAME:<filename>;DATA:<hex>;
+    txPayload = `NAME:${file.name};DATA:${hex};`;
+    document.getElementById('tx-log').innerText = `Loaded "${file.name}" (${uint8.length} bytes).\nReady to transmit. Estimated duration: ~${Math.round((txPayload.length * 8 * unitTime) / 1000)}s`;
+    document.getElementById('tx-start-btn').disabled = false;
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function startTransmission() {
+  if (!txAudioCtx) txAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (txAudioCtx.state === 'suspended') await txAudioCtx.resume();
+
+  isTransmitting = true;
+  document.getElementById('tx-status').className = 'status-badge transmitting';
+  document.getElementById('tx-status').innerText = 'TRANSMITTING...';
+  document.getElementById('tx-start-btn').style.display = 'none';
+  document.getElementById('tx-stop-btn').style.display = 'block';
+
+  const log = document.getElementById('tx-log');
+  log.innerText = "Transmitting tones:\n";
+
+  for (let char of txPayload) {
+    if (!isTransmitting) break;
+    const code = MORSE_MAP[char];
+    if (!code) continue;
+
+    log.innerText += char;
+    log.scrollTop = log.scrollHeight;
+
+    for (let symbol of code) {
+      if (!isTransmitting) break;
+      const duration = (symbol === '.' ? 1 : 3) * unitTime;
+      await playTone(duration);
+      await sleep(unitTime); // Intra-symbol gap (1 unit)
+    }
+    await sleep(unitTime * 3); // Inter-character gap (3 units)
+  }
+
+  stopTransmission();
+}
+
+function playTone(durationMs) {
+  return new Promise(resolve => {
+    const osc = txAudioCtx.createOscillator();
+    const gain = txAudioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = FREQ;
+
+    gain.gain.setValueAtTime(0, txAudioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.5, txAudioCtx.currentTime + 0.005);
+    gain.gain.setValueAtTime(0.5, txAudioCtx.currentTime + (durationMs / 1000) - 0.005);
+    gain.gain.linearRampToValueAtTime(0, txAudioCtx.currentTime + (durationMs / 1000));
+
+    osc.connect(gain);
+    gain.connect(txAudioCtx.destination);
+    osc.start();
+    osc.stop(txAudioCtx.currentTime + (durationMs / 1000));
+    setTimeout(resolve, durationMs);
+  });
+}
+
+function stopTransmission() {
+  isTransmitting = false;
+  document.getElementById('tx-status').className = 'status-badge';
+  document.getElementById('tx-status').innerText = 'IDLE';
+  document.getElementById('tx-start-btn').style.display = 'block';
+  document.getElementById('tx-stop-btn').style.display = 'none';
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ==========================================
+// 2. RECEIVER (MICROPHONE & DECODER)
+// ==========================================
+let rxAudioCtx = null, rxStream = null, analyser = null;
+let isListening = false;
+let toneStartTime = 0, silenceStartTime = 0;
+let toneActive = false;
+let currentSymbolCode = "";
+let decodedMessage = "";
+
+async function toggleListening() {
+  if (isListening) {
+    stopListening();
+  } else {
+    await startListening();
+  }
+}
+
+async function startListening() {
+  try {
+    // Crucial: turn off echoCancellation and noiseSuppression so raw tones are preserved!
+    rxStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+
+    rxAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = rxAudioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+
+    const source = rxAudioCtx.createMediaStreamSource(rxStream);
+    source.connect(analyser);
+
+    isListening = true;
+    document.getElementById('rx-status').className = 'status-badge receiving';
+    document.getElementById('rx-status').innerText = 'LISTENING...';
+    document.getElementById('rx-toggle-btn').innerText = 'Stop Microphone Listener';
+    document.getElementById('rx-toggle-btn').style.background = '#ef4444';
+
+    silenceStartTime = performance.now();
+    requestAnimationFrame(analyzeSignal);
+  } catch (err) {
+    alert("Microphone access failed: " + err.message);
+  }
+}
+
+function stopListening() {
+  isListening = false;
+  if (rxStream) rxStream.getTracks().forEach(t => t.stop());
+  if (rxAudioCtx) rxAudioCtx.close();
+  document.getElementById('rx-status').className = 'status-badge';
+  document.getElementById('rx-status').innerText = 'LISTENER STOPPED';
+  document.getElementById('rx-toggle-btn').innerText = 'Start Microphone Listener';
+  document.getElementById('rx-toggle-btn').style.background = 'var(--accent)';
+}
+
+function analyzeSignal() {
+  if (!isListening) return;
+
+  const bufferLength = analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLength);
+  analyser.getByteFrequencyData(dataArray);
+
+  // Locate the frequency bin for target FREQ (850Hz)
+  const targetBin = Math.round((FREQ * analyser.fftSize) / rxAudioCtx.sampleRate);
+  // Average across 3 adjacent bins to tolerate slight mic pitch drift
+  const energy = (dataArray[targetBin - 1] + dataArray[targetBin] + dataArray[targetBin + 1]) / 3;
+
+  drawMeter(energy);
+
+  const now = performance.now();
+  const isToneNow = energy > threshold;
+
+  if (isToneNow && !toneActive) {
+    // Tone just started
+    toneActive = true;
+    toneStartTime = now;
+  } else if (!isToneNow && toneActive) {
+    // Tone just finished -> Calculate Dot vs Dash
+    toneActive = false;
+    const dur = now - toneStartTime;
+    silenceStartTime = now;
+
+    // Reject short glitches < 0.4 units
+    if (dur > unitTime * 0.4) {
+      currentSymbolCode += (dur < unitTime * 2.0) ? '.' : '-';
+    }
+  } else if (!isToneNow && !toneActive && currentSymbolCode.length > 0) {
+    // Character finished after ~2.2 units of silence
+    if (now - silenceStartTime > unitTime * 2.2) {
+      const char = REVERSE_MAP[currentSymbolCode] || '?';
+      decodedMessage += char;
+      currentSymbolCode = "";
+
+      const log = document.getElementById('rx-log');
+      log.innerText = decodedMessage;
+      log.scrollTop = log.scrollHeight;
+
+      checkForCompletePayload(decodedMessage);
+    }
+  }
+
+  requestAnimationFrame(analyzeSignal);
+}
+
+function checkForCompletePayload(str) {
+  // Looks for "NAME:...;DATA:...;"
+  const match = str.match(/NAME:([^;]+);DATA:([0-9A-F]+);/);
+  if (match) {
+    const filename = match[1];
+    const hex = match[2];
+
+    // Rebuild bytes from Hex
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) {
+      bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+    }
+
+    const blob = new Blob([bytes]);
+    const url = URL.createObjectURL(blob);
+
+    document.getElementById('rx-download').innerHTML = `
+      <div style="background:#15803d; padding:10px; border-radius:6px; text-align:center;">
+        <b>File Complete!</b><br>
+        <a href="${url}" download="${filename}" style="color:white; font-weight:bold; text-decoration:underline;">
+          Click here to Download "${filename}"
+        </a>
+      </div>
+    `;
+    stopListening();
+  }
+}
+
+// Visualizer meter showing detected tone energy vs threshold
+function drawMeter(energy) {
+  const canvas = document.getElementById('meter');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Energy fill
+  ctx.fillStyle = energy > threshold ? '#22c55e' : '#38bdf8';
+  const width = Math.min(canvas.width, (energy / 255) * canvas.width);
+  ctx.fillRect(0, 0, width, canvas.height);
+
+  // Threshold marker line
+  const threshX = (threshold / 255) * canvas.width;
+  ctx.fillStyle = '#ef4444';
+  ctx.fillRect(threshX - 1, 0, 2, canvas.height);
+}
+</script>
+</body>
+</html>
