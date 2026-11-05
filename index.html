@@ -9,16 +9,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="KrizDrop">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="description" content="KrizDrop — instant, encrypted peer-to-peer file sharing directly between browsers.">
-  <title>KrizDrop — Direct P2P File Transfer</title>
+  <meta name="description" content="KrizDrop — instant, encrypted peer-to-peer file & text sharing directly between browsers.">
+  <title>KrizDrop — Direct P2P File & Text Transfer</title>
 
-  <!-- Favicon & Apple Touch Icon -->
   <link rel="icon" href="https://altkriz.github.io/favicon.ico" sizes="any">
   <link rel="shortcut icon" href="https://altkriz.github.io/favicon.ico" type="image/x-icon">
   <link rel="apple-touch-icon" href="https://altkriz.github.io/favicon.ico">
-
-  <!-- Embedded Single-File PWA Web App Manifest -->
-  <link id="pwaManifest" rel="manifest" href='data:application/manifest+json,{"name":"KrizDrop — Direct P2P File Transfer","short_name":"KrizDrop","description":"Instant, encrypted peer-to-peer file sharing directly between browsers.","start_url":"https://altkriz.github.io/krizdrop/","scope":"https://altkriz.github.io/krizdrop/","display":"standalone","orientation":"portrait-primary","background_color":"#070b14","theme_color":"#0b1220","icons":[{"src":"https://altkriz.github.io/favicon.ico","sizes":"16x16 32x32 48x48 64x64 128x128 192x192 256x256 512x512","type":"image/x-icon","purpose":"any maskable"}]}'>
+  <link rel="manifest" href="./manifest.webmanifest">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -39,7 +36,6 @@
   </script>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <!-- jsQR for universal in-app camera QR scanning across Android & iOS Safari -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
     :root { color-scheme: light; }
@@ -71,63 +67,57 @@
       0%, 100% { top: 10%; opacity: 0.9; }
       50% { top: 88%; opacity: 1; }
     }
-    .scan-laser {
-      animation: scanLaser 2.2s ease-in-out infinite;
-    }
+    .scan-laser { animation: scanLaser 2.2s ease-in-out infinite; }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-900 dark:bg-[#070b14] dark:text-slate-100 transition-colors selection:bg-indigo-500 selection:text-white">
 
-  <!-- Ambient Top Glow -->
   <div class="pointer-events-none fixed inset-x-0 top-0 h-64 bg-gradient-to-b from-indigo-500/10 via-indigo-500/5 to-transparent dark:from-indigo-500/15 dark:via-indigo-950/10 dark:to-transparent -z-10"></div>
 
   <div class="min-h-[100dvh] w-full max-w-[100vw] overflow-x-hidden flex flex-col pb-20 lg:pb-0">
 
-    <!-- App Header -->
+    <!-- Top Header (Compact on mobile so Theme Switch & Install button NEVER get cut off) -->
     <header class="w-full border-b border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-[#0b1220]/90 glass sticky top-0 z-30">
-      <div class="max-w-7xl w-full mx-auto px-3.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
-        <a href="#" class="flex items-center gap-2.5 min-w-0 shrink-0" aria-label="KrizDrop home">
+      <div class="max-w-7xl w-full mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
+        <a href="#" class="flex items-center gap-2.5 min-w-0 shrink" aria-label="KrizDrop home">
           <img src="https://altkriz.github.io/favicon.ico" alt="KrizDrop" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl object-contain bg-indigo-600/10 p-1 border border-indigo-500/20 shrink-0" onerror="this.style.display='none'">
-          <div class="leading-tight">
-            <div class="font-extrabold tracking-tight text-base sm:text-lg flex items-center gap-2">
-              <span>KrizDrop</span>
-              <span class="hidden sm:inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">P2P WebRTC</span>
+          <div class="min-w-0 leading-tight">
+            <div class="font-extrabold tracking-tight text-base sm:text-lg flex items-center gap-1.5">
+              <span class="truncate">KrizDrop</span>
+              <span id="mobileStatusDot" class="sm:hidden w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+              <span class="hidden md:inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">P2P WebRTC</span>
             </div>
-            <div class="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 whitespace-nowrap">Direct P2P Transfer</div>
+            <div id="mobileStatusSub" class="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">Starting…</div>
           </div>
         </a>
 
-        <div class="flex items-center gap-2 min-w-0">
-          <!-- Install Web App Button -->
-          <button id="installAppBtn" type="button" class="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 sm:px-3 py-1.5 text-xs font-bold shadow-sm shadow-indigo-600/20 transition-colors shrink-0">
-            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <button id="installAppBtn" type="button" class="hidden items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 sm:px-3 py-1.5 text-xs font-bold shadow-sm shadow-indigo-600/20 transition-colors shrink-0">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12m0 0-4-4m4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
             <span>Install</span>
           </button>
 
-          <!-- Connection Status Pill -->
-          <span id="connectionPill" class="inline-flex items-center gap-1.5 rounded-full px-2.5 sm:px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800/90 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700/70">
+          <span id="connectionPill" class="hidden sm:inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800/90 dark:text-slate-200 border border-slate-200/70 dark:border-slate-700/70">
             <span id="connectionDot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
-            <span id="connectionText" class="truncate max-w-[90px] sm:max-w-none">Starting…</span>
+            <span id="connectionText">Starting…</span>
           </span>
 
-          <button id="themeBtn" type="button" class="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white/70 dark:bg-slate-800/70 hover:bg-slate-100 dark:hover:bg-slate-800 grid place-items-center transition-colors" title="Toggle theme" aria-label="Toggle theme">
-            <svg id="themeIcon" viewBox="0 0 24 24" class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+          <button id="themeBtn" type="button" class="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-700 grid place-items-center transition-colors" title="Toggle theme" aria-label="Toggle theme">
+            <svg id="themeIcon" viewBox="0 0 24 24" class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
           </button>
         </div>
       </div>
     </header>
 
-    <!-- Main Container -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 py-4 lg:py-8">
 
-      <!-- Desktop Hero Banner -->
       <section class="hidden lg:flex items-center justify-between gap-6 mb-7 pb-6 border-b border-slate-200/70 dark:border-slate-800/70">
         <div>
           <div class="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-2.5">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> End-to-End Encrypted · Zero Cloud Storage · Built-In QR Scanner
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> End-to-End Encrypted · Ctrl+V Paste Support · Instant Text & File Stream
           </div>
           <h1 class="text-3xl xl:text-4xl font-extrabold tracking-tight">
-            Send files directly between devices. <span class="text-indigo-600 dark:text-indigo-400">No servers in between.</span>
+            Send files & text directly. <span class="text-indigo-600 dark:text-indigo-400">No servers in between.</span>
           </h1>
         </div>
         <div class="flex items-center gap-3 shrink-0">
@@ -138,13 +128,11 @@
         </div>
       </section>
 
-      <!-- Responsive Grid -->
       <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-start w-full">
 
-        <!-- LEFT COLUMN (Pair & QR) -->
+        <!-- LEFT COLUMN: PAIR & QR -->
         <div id="tabPanelPair" class="min-w-0 w-full lg:col-span-5 space-y-4">
 
-          <!-- Identity & QR Card -->
           <div class="w-full rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm overflow-hidden">
             <div class="px-4 py-3.5 sm:p-5 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-2">
               <div class="min-w-0">
@@ -181,7 +169,6 @@
                 </div>
               </div>
 
-              <!-- Instant Pairing URL -->
               <div class="w-full min-w-0 rounded-xl bg-slate-50 dark:bg-slate-900/60 p-3 border border-slate-200/60 dark:border-slate-800/80">
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-xs font-semibold text-slate-600 dark:text-slate-300">Instant Pairing URL</span>
@@ -192,7 +179,6 @@
             </div>
           </div>
 
-          <!-- Connect to Peer Card (With Built-in Camera QR Scanner!) -->
           <div class="w-full rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-4 sm:p-5 space-y-3.5">
             <div class="flex items-center justify-between gap-3">
               <div class="min-w-0">
@@ -204,7 +190,6 @@
               </div>
             </div>
 
-            <!-- Primary Action for Phone-to-Phone: Live In-App Camera QR Scanner -->
             <button id="scanQrBtn" type="button" class="w-full flex items-center justify-center gap-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600/15 dark:hover:bg-indigo-600/25 text-white dark:text-indigo-300 border border-transparent dark:border-indigo-500/30 px-4 py-3 text-xs sm:text-sm font-bold shadow-sm transition-all">
               <svg viewBox="0 0 24 24" class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M4 7V5a1 1 0 0 1 1-1h2M20 7V5a1 1 0 0 0-1-1h-2M4 17v2a1 1 0 0 0 1 1h2M20 17v2a1 1 0 0 1-1 1h-2"/>
@@ -228,12 +213,11 @@
           </div>
         </div>
 
-        <!-- RIGHT COLUMN (Transfer & Activity) -->
+        <!-- RIGHT COLUMN: TRANSFER, TEXT SNIPPETS & ACTIVITY -->
         <div id="tabPanelTransfer" class="min-w-0 w-full lg:col-span-7 space-y-4 mobile-tab-hidden">
 
-          <!-- Connected Devices Card -->
-          <div class="w-full rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-4 sm:p-5">
-            <div class="flex items-center justify-between gap-2 mb-3">
+          <div class="w-full rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-4 sm:p-5 space-y-3.5">
+            <div class="flex items-center justify-between gap-2">
               <div class="min-w-0">
                 <div class="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Active Channels</div>
                 <h2 class="text-base sm:text-lg font-bold">Connected Devices</h2>
@@ -245,46 +229,73 @@
                 </button>
               </div>
             </div>
+
             <div id="peerList" class="space-y-2">
               <div class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 p-4 text-center">
                 No devices connected yet. Pair a device in the Pair tab first.
               </div>
             </div>
+
+            <div class="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <select id="targetPeer" class="flex-1 min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3 py-2.5 text-xs sm:text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500" disabled>
+                <option value="">Target: Connect a device first</option>
+              </select>
+
+              <label class="inline-flex items-center justify-between sm:justify-start gap-2.5 cursor-pointer select-none bg-slate-50 dark:bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-200/70 dark:border-slate-800 shrink-0">
+                <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">Auto-accept files</span>
+                <input id="autoAcceptToggle" type="checkbox" class="sr-only peer">
+                <div class="relative w-9 h-5 bg-slate-300 dark:bg-slate-700 rounded-full peer peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+              </label>
+            </div>
           </div>
 
-          <!-- File Drop & Live Transfer Center -->
           <div class="w-full rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-4 sm:p-5">
             <div class="flex items-center justify-between gap-2 mb-3">
               <div>
-                <div class="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Transfer Center</div>
-                <h2 class="text-base sm:text-lg font-bold">Send & Receive Files</h2>
+                <div class="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">File Transfer</div>
+                <h2 class="text-base sm:text-lg font-bold">Send Files or Paste Screenshot</h2>
               </div>
-              <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Encrypted Stream</span>
+              <span class="hidden sm:inline-block text-[11px] font-mono text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg">Ctrl+V to Paste</span>
             </div>
 
-            <div id="dropZone" class="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-900/40 p-6 sm:p-8 text-center transition-all cursor-pointer hover:border-indigo-500">
+            <div id="dropZone" class="rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-900/40 p-5 sm:p-7 text-center transition-all cursor-pointer hover:border-indigo-500">
               <input id="fileInput" type="file" multiple class="hidden">
-              <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-indigo-600/10 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-400 grid place-items-center mx-auto mb-2.5">
-                <svg viewBox="0 0 24 24" class="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4m-5 5 5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+              <div class="w-12 h-12 rounded-2xl bg-indigo-600/10 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-400 grid place-items-center mx-auto mb-2">
+                <svg viewBox="0 0 24 24" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4m-5 5 5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
               </div>
-              <div class="font-bold text-sm sm:text-base">Tap to select files <span class="hidden sm:inline">or drag & drop here</span></div>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Any file type · Multiple files supported</p>
+              <div class="font-bold text-sm sm:text-base">Tap to choose files <span class="hidden sm:inline">· Drag & drop · or press Ctrl+V</span></div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Photos, videos, documents, or clipboard screenshots</p>
             </div>
 
             <div id="selectedFiles" class="hidden mt-3.5 space-y-2 max-h-44 overflow-y-auto scrollbar-thin"></div>
             <div id="transferProgressList" class="hidden mt-3.5 space-y-2.5"></div>
 
-            <div class="mt-3.5 flex flex-col sm:flex-row gap-2">
-              <select id="targetPeer" class="flex-1 min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-3 text-xs sm:text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500" disabled>
-                <option value="">Connect a device first</option>
-              </select>
-              <button id="sendBtn" type="button" class="w-full sm:w-auto rounded-xl bg-indigo-600 text-white px-6 py-3 text-sm font-bold hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all" disabled>
-                Send Files Now
-              </button>
-            </div>
+            <button id="sendBtn" type="button" class="mt-3.5 w-full rounded-xl bg-indigo-600 text-white px-6 py-3 text-sm font-bold hover:bg-indigo-700 shadow-md shadow-indigo-600/20 transition-all" disabled>
+              Send Queued Files
+            </button>
           </div>
 
-          <!-- Session Activity Log -->
+          <div class="w-full rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-4 sm:p-5 space-y-3">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <div class="text-[10px] sm:text-[11px] uppercase tracking-widest font-bold text-indigo-600 dark:text-indigo-400">Instant Clipboard</div>
+                <h2 class="text-base sm:text-lg font-bold">Send Text, OTP, or Link</h2>
+              </div>
+              <button id="pasteClipboardBtn" type="button" class="rounded-xl border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                Paste Clipboard
+              </button>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2">
+              <textarea id="textSnippetInput" rows="2" placeholder="Type or paste an OTP, URL, Wi-Fi password, or note…" class="w-full flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3.5 py-2.5 text-xs sm:text-sm outline-none focus:ring-2 focus:ring-indigo-500 resize-y"></textarea>
+              <button id="sendTextBtn" type="button" class="w-full sm:w-auto shrink-0 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white px-5 py-2.5 text-xs sm:text-sm font-bold transition-colors" disabled>
+                Send Text
+              </button>
+            </div>
+
+            <div id="textMessagesList" class="hidden space-y-2 max-h-56 overflow-y-auto scrollbar-thin pt-1"></div>
+          </div>
+
           <div id="tabPanelActivity" class="w-full rounded-2xl sm:rounded-3xl border border-slate-200/90 dark:border-slate-800/90 bg-white dark:bg-[#101929] shadow-sm p-4 sm:p-5 mobile-tab-hidden">
             <div class="flex items-center justify-between mb-3">
               <div>
@@ -302,7 +313,7 @@
       </section>
     </main>
 
-    <!-- MOBILE BOTTOM NAVIGATION BAR (<1024px) -->
+    <!-- MOBILE BOTTOM NAVIGATION BAR -->
     <nav class="lg:hidden fixed bottom-0 inset-x-0 w-full z-40 border-t border-slate-200/90 dark:border-slate-800/90 bg-white/95 dark:bg-[#0b1220]/95 glass">
       <div class="grid grid-cols-3 h-16 max-w-md mx-auto px-2">
         <button data-tab="pair" type="button" class="mobile-tab-btn flex flex-col items-center justify-center gap-1 text-indigo-600 dark:text-indigo-400 font-bold">
@@ -369,26 +380,6 @@
     </div>
   </div>
 
-  <!-- INSTALL APP GUIDE MODAL (For iOS Safari & Browsers without direct prompt) -->
-  <div id="installGuideModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-950/60 backdrop-blur-sm p-3 sm:p-4">
-    <div class="w-full max-w-sm rounded-3xl bg-white dark:bg-[#111a2e] border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4">
-      <div class="flex items-center gap-3">
-        <img src="https://altkriz.github.io/favicon.ico" alt="KrizDrop" class="w-11 h-11 rounded-2xl bg-indigo-600/10 p-1.5 border border-indigo-500/20">
-        <div>
-          <div class="text-[10px] font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Install Web App</div>
-          <h3 class="text-base font-extrabold">Add KrizDrop to Home Screen</h3>
-        </div>
-      </div>
-      <div class="text-xs text-slate-600 dark:text-slate-300 space-y-2 leading-relaxed bg-slate-50 dark:bg-slate-900/80 p-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-800">
-        <p><strong>On Android (Chrome / Edge / Brave):</strong><br>Tap the browser menu <strong>(⋮)</strong> in the top-right corner and select <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong>.</p>
-        <p><strong>On iPhone / iPad (Safari):</strong><br>Tap the <strong>Share</strong> button at the bottom of Safari and select <strong>"Add to Home Screen"</strong>.</p>
-      </div>
-      <button id="closeInstallGuideBtn" type="button" class="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white py-3 text-xs font-bold">
-        Got It
-      </button>
-    </div>
-  </div>
-
   <!-- INCOMING FILE OFFER MODAL -->
   <div id="offerModal" class="fixed inset-0 z-50 hidden items-end sm:items-center justify-center bg-slate-950/60 backdrop-blur-sm p-3 sm:p-4">
     <div class="w-full max-w-md rounded-3xl bg-white dark:bg-[#111a2e] border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xl">
@@ -424,7 +415,6 @@
     </div>
   </div>
 
-  <!-- Toast Notification -->
   <div id="toast" class="fixed bottom-20 lg:bottom-6 left-1/2 -translate-x-1/2 z-50 hidden max-w-[calc(100vw-2rem)] rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold px-4 py-3 text-xs sm:text-sm shadow-2xl truncate"></div>
 
 <script>
@@ -445,21 +435,49 @@
   let deferredInstallPrompt = null;
   let wakeLockSentinel = null;
 
-  // QR Scanner State
   let qrStream = null;
   let qrScanRaf = null;
   let qrFacingMode = 'environment';
 
-  // Hide Install Button if already running as installed standalone app
+  $('autoAcceptToggle').checked = localStorage.getItem('krizdrop-auto-accept') === 'true';
+  $('autoAcceptToggle').addEventListener('change', e => {
+    localStorage.setItem('krizdrop-auto-accept', e.target.checked ? 'true' : 'false');
+    toast(e.target.checked ? 'Auto-accept incoming files enabled' : 'Auto-accept disabled');
+  });
+
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', async () => {
+      try { await navigator.serviceWorker.register('./sw.js'); } catch {}
+    });
+
+    navigator.serviceWorker.addEventListener('message', event => {
+      if (event.data && event.data.type === 'SHARED_FILES' && Array.isArray(event.data.files)) {
+        addFiles(event.data.files);
+        toast(`Loaded ${event.data.files.length} shared file(s)`);
+        if (window.innerWidth < 1024) switchMobileTab('transfer');
+      }
+      if (event.data && event.data.type === 'SHARED_TEXT' && event.data.text) {
+        $('textSnippetInput').value = event.data.text;
+        updatePeers();
+        if (window.innerWidth < 1024) switchMobileTab('transfer');
+      }
+    });
+  }
+
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-  if (isStandalone) {
-    $('installAppBtn').classList.add('hidden');
+  if (isIos && !isStandalone) {
+    $('installAppBtn').classList.remove('hidden');
+    $('installAppBtn').classList.add('inline-flex');
   }
 
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     deferredInstallPrompt = e;
-    $('installAppBtn').classList.remove('hidden');
+    if (!isStandalone) {
+      $('installAppBtn').classList.remove('hidden');
+      $('installAppBtn').classList.add('inline-flex');
+    }
   });
 
   $('installAppBtn').addEventListener('click', async () => {
@@ -471,23 +489,16 @@
         toast('Installing KrizDrop…');
       }
       deferredInstallPrompt = null;
-    } else {
-      $('installGuideModal').classList.remove('hidden');
-      $('installGuideModal').classList.add('flex');
+    } else if (isIos) {
+      toast('Tap Safari Share button → "Add to Home Screen"');
     }
-  });
-
-  $('closeInstallGuideBtn').addEventListener('click', () => {
-    $('installGuideModal').classList.add('hidden');
-    $('installGuideModal').classList.remove('flex');
   });
 
   window.addEventListener('appinstalled', () => {
     $('installAppBtn').classList.add('hidden');
-    toast('KrizDrop installed on your device!');
+    toast('KrizDrop installed as an app!');
   });
 
-  // Screen Wake Lock
   async function requestWakeLock() {
     if ('wakeLock' in navigator && !wakeLockSentinel) {
       try { wakeLockSentinel = await navigator.wakeLock.request('screen'); } catch {}
@@ -539,9 +550,12 @@
 
   function setStatus(text, good = false) {
     $('connectionText').textContent = text;
-    $('connectionDot').className = `w-2 h-2 rounded-full shrink-0 ${
+    $('mobileStatusSub').textContent = text;
+    const dotClass = `w-2 h-2 rounded-full shrink-0 ${
       good ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
     }`;
+    $('connectionDot').className = dotClass;
+    $('mobileStatusDot').className = `sm:hidden ${dotClass}`;
   }
 
   function switchMobileTab(tabName) {
@@ -606,7 +620,6 @@
     return trimmed;
   }
 
-  // LIVE IN-APP CAMERA QR SCANNER
   async function startQrScanner() {
     stopQrScanner(false);
     $('qrScannerModal').classList.remove('hidden');
@@ -760,6 +773,7 @@
     $('disconnectBtn').disabled = count === 0;
     $('targetPeer').disabled = count === 0;
     $('sendBtn').disabled = count === 0 || selectedFiles.length === 0;
+    $('sendTextBtn').disabled = count === 0 || !$('textSnippetInput').value.trim();
 
     const badge = $('mobilePeerBadge');
     if (count > 0) {
@@ -770,8 +784,8 @@
     }
 
     $('targetPeer').innerHTML = count
-      ? entries.map(([id]) => `<option value="${safeText(id)}">Send to: ${safeText(id.slice(0, 22))}${id.length > 22 ? '…' : ''}</option>`).join('')
-      : '<option value="">Connect a device first</option>';
+      ? entries.map(([id]) => `<option value="${safeText(id)}">Target Peer: ${safeText(id.slice(0, 22))}${id.length > 22 ? '…' : ''}</option>`).join('')
+      : '<option value="">Target: Connect a device first</option>';
 
     $('peerList').innerHTML = count
       ? ''
@@ -804,7 +818,7 @@
     if (!id || id === myPeerId) { toast('Enter another device’s Peer ID.'); return; }
     if (peers.has(id) && peers.get(id).conn.open) { toast('Already connected to this device.'); return; }
     log(`Connecting to ${id.slice(0, 18)}…`);
-    const conn = peer.connect(id, { reliable: true, serialization: 'binary', metadata: { app: 'KrizDrop', version: 2 } });
+    const conn = peer.connect(id, { reliable: true, serialization: 'binary', metadata: { app: 'KrizDrop', version: 3 } });
     attachConnection(conn);
   }
 
@@ -819,12 +833,12 @@
         }
       } catch {}
       log(`Connected to ${id.slice(0, 22)}`, 'success');
-      toast('Device connected! Ready to transfer files.');
+      toast('Device connected! Ready to transfer.');
       updatePeers();
       if (window.innerWidth < 1024 && currentMobileTab === 'pair') {
         switchMobileTab('transfer');
       }
-      try { conn.send({ type: 'hello', app: 'KrizDrop', version: 2 }); } catch {}
+      try { conn.send({ type: 'hello', app: 'KrizDrop', version: 3 }); } catch {}
     });
     conn.on('data', data => handleData(id, data));
     conn.on('close', () => {
@@ -854,6 +868,7 @@
     if (!data || typeof data !== 'object' || typeof data.type !== 'string') return;
     switch (data.type) {
       case 'hello': break;
+      case 'text-snippet': receiveTextSnippet(id, data); break;
       case 'file-offer': receiveOffer(id, data); break;
       case 'file-response': handleFileResponse(id, data); break;
       case 'file-end': finishIncoming(id, data); break;
@@ -872,6 +887,112 @@
       default: break;
     }
   }
+
+  $('textSnippetInput').addEventListener('input', updatePeers);
+  $('pasteClipboardBtn').addEventListener('click', async () => {
+    try {
+      const clip = await navigator.clipboard.readText();
+      if (clip) {
+        $('textSnippetInput').value = clip;
+        updatePeers();
+        toast('Pasted from clipboard');
+      } else {
+        toast('Clipboard is empty');
+      }
+    } catch {
+      toast('Tap inside the text box and paste manually');
+    }
+  });
+
+  function renderTextCard(direction, peerId, content) {
+    const list = $('textMessagesList');
+    list.classList.remove('hidden');
+    const card = document.createElement('div');
+    card.className = 'rounded-xl bg-slate-50 dark:bg-slate-900/90 p-3 border border-slate-200/70 dark:border-slate-800 space-y-1.5';
+    const top = document.createElement('div');
+    top.className = 'flex items-center justify-between gap-2 text-[11px]';
+    const badge = document.createElement('span');
+    badge.className = `font-bold uppercase tracking-wider ${
+      direction === 'received' ? 'text-emerald-600 dark:text-emerald-400' : 'text-indigo-600 dark:text-indigo-400'
+    }`;
+    badge.textContent = direction === 'received' ? `From ${peerId.slice(0, 12)}…` : `Sent to ${peerId.slice(0, 12)}…`;
+
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'font-bold text-indigo-600 dark:text-indigo-400 hover:underline';
+    copyBtn.textContent = 'Copy Text';
+    copyBtn.addEventListener('click', () => copyText(content, 'Text copied to clipboard'));
+
+    top.append(badge, copyBtn);
+
+    const body = document.createElement('div');
+    body.className = 'text-xs sm:text-sm font-mono break-all whitespace-pre-wrap text-slate-800 dark:text-slate-100 select-all';
+    body.textContent = content;
+
+    card.append(top, body);
+    list.prepend(card);
+  }
+
+  $('sendTextBtn').addEventListener('click', () => {
+    const id = $('targetPeer').value;
+    const state = peers.get(id);
+    const text = $('textSnippetInput').value.trim();
+    if (!state || !state.conn.open || !text) return;
+    state.conn.send({ type: 'text-snippet', text: text.slice(0, 50000) });
+    renderTextCard('sent', id, text);
+    $('textSnippetInput').value = '';
+    updatePeers();
+    log(`Sent text snippet to ${id.slice(0, 16)}`, 'success');
+    toast('Text snippet sent!');
+  });
+
+  function receiveTextSnippet(id, data) {
+    const text = String(data.text || '').slice(0, 50000);
+    if (!text) return;
+    if (window.innerWidth < 1024) switchMobileTab('transfer');
+    renderTextCard('received', id, text);
+    log(`Received text snippet from ${id.slice(0, 16)}`, 'success');
+    toast('Received text snippet! Tap Copy Text.');
+  }
+
+  window.addEventListener('paste', e => {
+    const activeTag = document.activeElement?.tagName;
+    const isTyping = activeTag === 'INPUT' || activeTag === 'TEXTAREA';
+
+    const items = [...(e.clipboardData?.items || [])];
+    const fileItems = items.filter(item => item.kind === 'file');
+
+    if (fileItems.length > 0) {
+      e.preventDefault();
+      const pastedFiles = fileItems.map(item => {
+        const blob = item.getAsFile();
+        if (!blob) return null;
+        if (blob.name === 'image.png' || !blob.name) {
+          const ext = (blob.type.split('/')[1] || 'png').replace(/[^a-z0-9]/gi, '');
+          const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+          return new File([blob], `screenshot-${stamp}.${ext}`, { type: blob.type });
+        }
+        return blob;
+      }).filter(Boolean);
+
+      if (pastedFiles.length) {
+        addFiles(pastedFiles);
+        if (window.innerWidth < 1024) switchMobileTab('transfer');
+        toast(`Staged ${pastedFiles.length} pasted file(s) from clipboard!`);
+      }
+      return;
+    }
+
+    if (!isTyping) {
+      const pastedText = e.clipboardData?.getData('text/plain')?.trim();
+      if (pastedText) {
+        $('textSnippetInput').value = pastedText;
+        updatePeers();
+        if (window.innerWidth < 1024) switchMobileTab('transfer');
+        toast('Pasted text into Instant Clipboard box');
+      }
+    }
+  });
 
   function askUserToAcceptOffer(peerId, fileName, fileSize) {
     return new Promise(resolve => {
@@ -911,7 +1032,9 @@
 
     if (window.innerWidth < 1024) switchMobileTab('transfer');
 
-    const accepted = await askUserToAcceptOffer(id, name, size);
+    const autoAccept = $('autoAcceptToggle').checked;
+    const accepted = autoAccept ? true : await askUserToAcceptOffer(id, name, size);
+
     if (!accepted) {
       state.conn.send({ type: 'file-response', transferId: offer.transferId, accepted: false, reason: 'Declined by recipient' });
       log(`Declined ${name}`);
@@ -930,7 +1053,7 @@
       finishCheckTimer: null
     };
     state.conn.send({ type: 'file-response', transferId: offer.transferId, accepted: true });
-    log(`Receiving ${name}…`);
+    log(`Receiving ${name}${autoAccept ? ' (auto-accepted)' : ''}…`);
     updateTransferProgress(id, 'Receiving', name, 0, 0, size, 0);
   }
 
